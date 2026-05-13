@@ -1362,7 +1362,12 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self._screen_metrics_signature = signature
         self.setMinimumSize(metrics.min_window_size)
 
-        if not self.isMaximized():
+        is_effectively_maximized = bool(
+            self.is_window_effectively_maximized()
+            if hasattr(self, "is_window_effectively_maximized")
+            else self.isMaximized()
+        )
+        if not is_effectively_maximized:
             target_size = self.size().boundedTo(metrics.initial_window_size).expandedTo(metrics.min_window_size)
             self.resize(target_size)
 
