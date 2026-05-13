@@ -67,6 +67,7 @@ from .plot_types import normalize_plot_type
 from .icons import Icons, icon
 from styles.colors import Colors
 from styles.stylesheet import StyleSheet
+from ui.scaling import build_screen_metrics
 from .theme_utils import reset_widget_layout
 
 
@@ -79,10 +80,11 @@ class PlotSidebar(QFrame):
 
     def __init__(self, plot_page_ref=None, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(parent)
         self.plot_page_ref = plot_page_ref  # Reference to PlotPage for toolbar access
         self.setObjectName("plotSidebar")
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(300)
+        self.setMinimumWidth(metrics.plot_sidebar_width)
+        self.setMaximumWidth(metrics.plot_sidebar_width)
         self.setStyleSheet(f"""
             QWidget#plotSidebar {{
                 background-color: {Colors.BG_PANEL};
@@ -95,20 +97,21 @@ class PlotSidebar(QFrame):
 
     def _setup_ui(self):
         """Setup the sidebar UI."""
+        metrics = build_screen_metrics(self)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
         # ── Gradient title header ──
         title_widget = QWidget()
-        title_widget.setFixedHeight(52)
+        title_widget.setFixedHeight(metrics.title_header_height)
         title_widget.setStyleSheet(f"""
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {Colors.BG_ELEVATED},
                 stop:1 {Colors.BG_SURFACE});
         """)
         title_layout = QVBoxLayout(title_widget)
-        title_layout.setContentsMargins(16, 10, 16, 10)
+        title_layout.setContentsMargins(14 if metrics.compact else 16, 8 if metrics.compact else 10, 14 if metrics.compact else 16, 8 if metrics.compact else 10)
         title_layout.setSpacing(2)
 
         title_label = QLabel("Plot Controls")
@@ -160,8 +163,8 @@ class PlotSidebar(QFrame):
         content_widget = QWidget()
         content_widget.setStyleSheet("QWidget { background-color: transparent; }")
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(14, 12, 14, 12)
-        content_layout.setSpacing(4)
+        content_layout.setContentsMargins(12 if metrics.compact else 14, 10 if metrics.compact else 12, 12 if metrics.compact else 14, 10 if metrics.compact else 12)
+        content_layout.setSpacing(4 if metrics.compact else 6)
 
         # ── VISUALIZATION section (card style) ──
         viz_section = CardSection("Visualization", icon_name=Icons.EYE, icon_color=Colors.ACCENT_PRIMARY)
@@ -1026,6 +1029,7 @@ class PlotSidebar(QFrame):
         self.mean_resultant_checkbox.blockSignals(False)
 
     def apply_theme(self):
+        metrics = build_screen_metrics(self)
         settings = {}
         if self.plot_page_ref is not None and getattr(self.plot_page_ref, "main_window", None) is not None:
             try:
@@ -1037,6 +1041,8 @@ class PlotSidebar(QFrame):
             plot_type = str(getattr(self.plot_page_ref.main_window, "current_plot_type", "2D"))
 
         reset_widget_layout(self)
+        self.setMinimumWidth(metrics.plot_sidebar_width)
+        self.setMaximumWidth(metrics.plot_sidebar_width)
         self.setStyleSheet(f"""
             QWidget#plotSidebar {{
                 background-color: {Colors.BG_PANEL};

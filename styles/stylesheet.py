@@ -4,17 +4,23 @@ Warm & Approachable dark theme with warm indigo accent.
 """
 
 from .colors import Colors
+from ui.scaling import build_screen_metrics, scale_qss
 
 
 class StyleSheet:
     """Centralized stylesheet generator for consistent theming."""
 
     @staticmethod
+    def _scaled(css: str) -> str:
+        metrics = build_screen_metrics()
+        return scale_qss(css, metrics.scale)
+
+    @staticmethod
     def get_main_stylesheet():
         """
         Main application stylesheet - warm, approachable, generous radius.
         """
-        return f"""
+        return StyleSheet._scaled(f"""
             /* ========== GLOBAL DEFAULTS ========== */
             * {{
                 font-family: 'Segoe UI', 'Plus Jakarta Sans', Arial, sans-serif;
@@ -532,7 +538,7 @@ class StyleSheet:
             QHeaderView::section:checked {{
                 color: {Colors.ACCENT_BRIGHT};
             }}
-        """
+        """)
 
     @staticmethod
     def get_section_widget_style():
@@ -571,7 +577,7 @@ class StyleSheet:
     @staticmethod
     def get_range_slider_style():
         """Enhanced style for range sliders."""
-        return f"""
+        return StyleSheet._scaled(f"""
             QSlider::groove:horizontal {{
                 height: 6px;
                 background-color: {Colors.BG_SURFACE};
@@ -606,7 +612,7 @@ class StyleSheet:
                 background: {Colors.GRADIENT_ACCENT};
                 border-radius: 3px;
             }}
-        """
+        """)
 
     @staticmethod
     def get_toolbar_style():
@@ -878,12 +884,13 @@ class StyleSheet:
     @staticmethod
     def get_toolbar_compact_style():
         """Style for the redesigned 40px compact plot toolbar."""
-        return f"""
+        metrics = build_screen_metrics()
+        return StyleSheet._scaled(f"""
             QWidget#plotToolbar {{
                 background-color: {Colors.BG_PANEL};
                 border-bottom: 1px solid {Colors.BORDER_DEFAULT};
-                min-height: 46px;
-                max-height: 46px;
+                min-height: {metrics.toolbar_height}px;
+                max-height: {metrics.toolbar_height}px;
             }}
 
             QComboBox {{
@@ -971,32 +978,33 @@ class StyleSheet:
                 border-radius: 8px;
             }}
             QWidget#tbActionGroup QToolButton {{
-                min-width: 28px;
-                max-width: 28px;
-                min-height: 28px;
-                max-height: 28px;
+                min-width: {metrics.toolbar_small_button_width}px;
+                max-width: {metrics.toolbar_small_button_width}px;
+                min-height: {metrics.toolbar_small_button_height}px;
+                max-height: {metrics.toolbar_small_button_height}px;
                 padding: 0px;
                 font-size: 13px;
                 border-radius: 6px;
             }}
-        """
+        """)
 
     @staticmethod
     def get_drawer_header_style():
         """Style for drawer header bar (32px, with drag pill and mode toggle)."""
-        return f"""
+        metrics = build_screen_metrics()
+        return StyleSheet._scaled(f"""
             QWidget#drawerHeader {{
                 background-color: {Colors.BG_PANEL};
                 border-top: 1px solid {Colors.BORDER_MEDIUM};
-                min-height: 32px;
-                max-height: 32px;
+                min-height: {metrics.drawer_header_height}px;
+                max-height: {metrics.drawer_header_height}px;
             }}
-        """
+        """)
 
     @staticmethod
     def get_settings_dialog_style():
         """Style for the PlotSettingsDialog."""
-        return f"""
+        return StyleSheet._scaled(f"""
             QDialog {{
                 background-color: {Colors.BG_MODAL};
             }}
@@ -1078,7 +1086,7 @@ class StyleSheet:
             QPushButton#settingsReset:hover {{
                 background-color: {Colors.ERROR_BG};
             }}
-        """
+        """)
 
     @staticmethod
     def get_compass_style():
@@ -1093,7 +1101,7 @@ class StyleSheet:
     def get_hint_bar_style():
         """Style for the floating hint bar pill at bottom of plot."""
         hint_bg = Colors.rgba(Colors.BG_DARK if Colors.is_dark() else Colors.BG_ELEVATED, 0.88 if Colors.is_dark() else 0.92)
-        return f"""
+        return StyleSheet._scaled(f"""
             QWidget#hintBar {{
                 background-color: {hint_bg};
                 border: 1px solid {Colors.BORDER_DEFAULT};
@@ -1124,12 +1132,12 @@ class StyleSheet:
                 background-color: {Colors.BG_HOVER};
                 color: {Colors.TEXT_PRIMARY};
             }}
-        """
+        """)
 
     @staticmethod
     def get_toggle_pill_group_style():
         """Style for the toggle pill group (Grid/Legend/Compass) in toolbar."""
-        return f"""
+        return StyleSheet._scaled(f"""
             QWidget#togglePillGroup {{
                 background-color: {Colors.BG_WELL};
                 border: 1px solid {Colors.BORDER_SUBTLE};
@@ -1153,4 +1161,4 @@ class StyleSheet:
                 color: {Colors.ACCENT_BRIGHT};
                 border-color: {Colors.BORDER_ACCENT};
             }}
-        """
+        """)

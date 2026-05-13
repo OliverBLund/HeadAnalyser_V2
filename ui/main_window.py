@@ -49,6 +49,7 @@ from styles.colors import Colors
 from styles.stylesheet import StyleSheet
 from styles.theme import build_qpalette
 from qt_chrome import FramelessMainWindowMixin
+from ui.scaling import build_screen_metrics
 from ui.workers import FunctionWorker
 
 
@@ -125,6 +126,9 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self._ui_theme = Colors.current_theme()
+        self._screen_metrics = build_screen_metrics()
+        self._screen_metrics_signature = None
+        self._tracked_window_handle = None
         self.init_frameless_window_chrome(
             default_windows="frameless",
             default_other="native",
@@ -133,8 +137,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             enable_edge_resize=True,
         )
         self.setWindowTitle("HeadAnalyser")
-        self.setMinimumSize(1200, 800)
-        self.resize(1400, 900)
+        self.setMinimumSize(self._screen_metrics.min_window_size)
+        self.resize(self._screen_metrics.initial_window_size)
 
         # Multi-dataset support
         self.datasets = {}  # {dataset_id: Dataset}
@@ -331,6 +335,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self._connect_signals()
         self._setup_shortcuts()
         self._sync_window_controls()
+        QTimer.singleShot(0, self._apply_screen_metrics)
 
     def get_current_filter_values(self):
         """Get current filter slider values from the properties panel (if available)."""
@@ -889,6 +894,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
 
     def _setup_ui(self):
         """Setup the main UI layout."""
+        metrics = self._screen_metrics
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -944,7 +950,10 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.properties_panel = PropertiesPanel(self)
         self.splitter.addWidget(self.properties_panel)
 
-        self.splitter.setSizes([950, 280])
+        self.splitter.setSizes([
+            max(640, metrics.initial_window_size.width() - metrics.properties_width),
+            metrics.properties_width,
+        ])
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 0)
 
@@ -1181,8 +1190,9 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
 
     def _setup_statusbar(self):
         """Setup the status bar."""
+        metrics = build_screen_metrics(self)
         self.statusbar = QStatusBar()
-        self.statusbar.setFixedHeight(32)
+        self.statusbar.setFixedHeight(metrics.statusbar_height)
         self.setStatusBar(self.statusbar)
         self.statusbar.setStyleSheet(
             f"""
@@ -1210,14 +1220,14 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         # Permanent widgets on right
         self.status_coords_label = QLabel("")
         # Keep fixed width so rapid coord updates don't trigger layout thrash.
-        self.status_coords_label.setFixedWidth(140)
+        self.status_coords_label.setFixedWidth(metrics.status_coords_width)
         self.status_coords_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.statusbar.addPermanentWidget(self.status_coords_label)
 
         # Separator (plain styled frame — no VLine to avoid Qt border artifact)
         sep1 = QFrame()
         sep1.setFixedWidth(1)
-        sep1.setFixedHeight(14)
+        sep1.setFixedHeight(metrics.status_separator_height)
         sep1.setStyleSheet(f"background-color: {Colors.BORDER_MEDIUM}; border: none;")
         self.status_sep1 = sep1
         self.statusbar.addPermanentWidget(sep1)
@@ -1228,7 +1238,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         # Separator
         sep2 = QFrame()
         sep2.setFixedWidth(1)
-        sep2.setFixedHeight(14)
+        sep2.setFixedHeight(metrics.status_separator_height)
         sep2.setStyleSheet(f"background-color: {Colors.BORDER_MEDIUM}; border: none;")
         self.status_sep2 = sep2
         self.statusbar.addPermanentWidget(sep2)
@@ -1277,6 +1287,11 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
     def _apply_statusbar_theme(self):
         if not hasattr(self, "statusbar") or self.statusbar is None:
             return
+        metrics = build_screen_metrics(self)
+        self.statusbar.setFixedHeight(metrics.statusbar_height)
+        self.status_coords_label.setFixedWidth(metrics.status_coords_width)
+        self.status_sep1.setFixedHeight(metrics.status_separator_height)
+        self.status_sep2.setFixedHeight(metrics.status_separator_height)
 
         self.statusbar.setStyleSheet(
             f"""
@@ -1313,6 +1328,68 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.status_triangles_total_chip.setStyleSheet(_chip_style(Colors.TEXT_SECONDARY))
         self.status_triangles_valid_chip.setStyleSheet(_chip_style(Colors.SUCCESS))
         self.status_triangles_rejected_chip.setStyleSheet(_chip_style(Colors.ERROR))
+
+    def _ensure_screen_metrics_tracking(self):
+        handle = self.windowHandle()
+        if handle is None or handle is self._tracked_window_handle:
+            return
+        if self._tracked_window_handle is not None:
+            try:
+                self._tracked_window_handle.screenChanged.disconnect(self._on_screen_changed)
+            except Exception:
+                pass
+        self._tracked_window_handle = handle
+        try:
+            handle.screenChanged.connect(self._on_screen_changed)
+        except Exception:
+            pass
+
+    def _on_screen_changed(self, _screen=None):
+        QTimer.singleShot(0, self._apply_screen_metrics)
+
+    def _apply_screen_metrics(self):
+        metrics = build_screen_metrics(self)
+        signature = (
+            metrics.available_width,
+            metrics.available_height,
+            metrics.compact,
+            metrics.scale,
+        )
+        if signature == self._screen_metrics_signature:
+            return
+
+        self._screen_metrics = metrics
+        self._screen_metrics_signature = signature
+        self.setMinimumSize(metrics.min_window_size)
+
+        if not self.isMaximized():
+            target_size = self.size().boundedTo(metrics.initial_window_size).expandedTo(metrics.min_window_size)
+            self.resize(target_size)
+
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(StyleSheet.get_main_stylesheet())
+
+        if hasattr(self, "header_bar") and self.header_bar is not None:
+            self.header_bar.apply_theme()
+        if hasattr(self, "nav_sidebar") and self.nav_sidebar is not None:
+            self.nav_sidebar.apply_theme()
+        if hasattr(self, "properties_panel") and self.properties_panel is not None:
+            self.properties_panel.apply_theme()
+        if hasattr(self, "splitter") and self.splitter is not None:
+            total_width = self.splitter.width() or max(960, metrics.initial_window_size.width() - metrics.nav_width)
+            self.splitter.setSizes([max(640, total_width - metrics.properties_width), metrics.properties_width])
+
+        self._apply_statusbar_theme()
+
+        for dataset in self.datasets.values():
+            if hasattr(dataset, "plot_page"):
+                dataset.plot_page.apply_theme()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._ensure_screen_metrics_tracking()
+        QTimer.singleShot(0, self._apply_screen_metrics)
 
     def _connect_signals(self):
         """Connect signals between components."""

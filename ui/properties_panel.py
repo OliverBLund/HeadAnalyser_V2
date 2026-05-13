@@ -24,6 +24,7 @@ import pandas as pd
 
 from styles.colors import Colors
 from styles.stylesheet import StyleSheet
+from ui.scaling import build_screen_metrics
 from .point_selection_dialog import PointSelectionDialog
 from .common_widgets import SectionHeader, ToggleSwitch, _TogglePill, CardSection
 from .icons import Icons
@@ -35,7 +36,8 @@ class PanelHeader(QWidget):
 
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(40)
+        metrics = build_screen_metrics(parent)
+        self.setFixedHeight(36 if metrics.compact else 40)
         # Updated gradient: from BG_ELEVATED (#28282f) to BG_SURFACE (#212127)
         # with 1px border-bottom using BORDER_DEFAULT
         self.setStyleSheet(f"""
@@ -103,6 +105,7 @@ class RangeSliderWidget(QWidget):
 
     def __init__(self, label: str, unit: str = "", parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(parent)
         self.unit = unit
         self._min_val = 0
         self._max_val = 100
@@ -123,7 +126,7 @@ class RangeSliderWidget(QWidget):
         # Fixed width value label to prevent cutoff
         # Softer border using BORDER_ACCENT and ACCENT_GHOST background
         self.value_label = QLabel("0.0 - 100.0")
-        self.value_label.setFixedWidth(100)  # FIXED WIDTH!
+        self.value_label.setFixedWidth(metrics.value_label_width)
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.value_label.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
@@ -275,29 +278,31 @@ class PropertiesPanel(QWidget):
 
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(parent)
         self.main_window = main_window
         self.setObjectName("propertiesPanel")
         self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setMinimumWidth(280)
-        self.setMaximumWidth(300)
+        self.setMinimumWidth(metrics.properties_width)
+        self.setMaximumWidth(metrics.properties_width)
 
         self._setup_ui()
 
     def _setup_ui(self):
+        metrics = build_screen_metrics(self)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
         # TITLE - gradient from BG_ELEVATED to BG_SURFACE, no bottom border
         title_widget = QWidget()
-        title_widget.setFixedHeight(52)
+        title_widget.setFixedHeight(metrics.title_header_height)
         title_widget.setStyleSheet(f"""
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {Colors.BG_ELEVATED},
                 stop:1 {Colors.BG_SURFACE});
         """)
         title_layout = QVBoxLayout(title_widget)
-        title_layout.setContentsMargins(16, 10, 16, 10)
+        title_layout.setContentsMargins(14 if metrics.compact else 16, 8 if metrics.compact else 10, 14 if metrics.compact else 16, 8 if metrics.compact else 10)
         title_layout.setSpacing(2)
 
         # Main title: 15px, weight 700, TEXT_PRIMARY
@@ -331,8 +336,8 @@ class PropertiesPanel(QWidget):
 
         scroll_content = QWidget()
         self.content_layout = QVBoxLayout(scroll_content)
-        self.content_layout.setContentsMargins(12, 12, 12, 12)
-        self.content_layout.setSpacing(12)
+        self.content_layout.setContentsMargins(10 if metrics.compact else 12, 10 if metrics.compact else 12, 10 if metrics.compact else 12, 10 if metrics.compact else 12)
+        self.content_layout.setSpacing(10 if metrics.compact else 12)
 
         # Create all sections
         self._create_filters_section()
@@ -393,6 +398,9 @@ class PropertiesPanel(QWidget):
         self.content_layout.addWidget(section)
 
     def apply_theme(self):
+        metrics = build_screen_metrics(self)
+        self.setMinimumWidth(metrics.properties_width)
+        self.setMaximumWidth(metrics.properties_width)
         reset_widget_layout(self)
         self._setup_ui()
         self.update_from_main_window()
@@ -599,7 +607,8 @@ class PropertiesPanel(QWidget):
         if os.path.exists(logo_path):
             from PyQt5.QtGui import QPixmap
             pixmap = QPixmap(logo_path)
-            scaled = pixmap.scaledToHeight(60, Qt.SmoothTransformation)
+            metrics = build_screen_metrics(self)
+            scaled = pixmap.scaledToHeight(52 if metrics.compact else 60, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled)
         else:
             logo_label.setText("DTU")
@@ -630,7 +639,7 @@ class PropertiesPanel(QWidget):
         # Version badge
         version_badge = QLabel("v2.0.0")
         version_badge.setAlignment(Qt.AlignCenter)
-        version_badge.setFixedWidth(70)
+        version_badge.setFixedWidth(build_screen_metrics(self).about_badge_width)
         version_badge.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
             font-size: 11px;

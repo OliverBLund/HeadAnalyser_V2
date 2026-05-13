@@ -25,6 +25,7 @@ from .plot_types import TOOLBAR_PLOT_LABELS, normalize_plot_type, to_toolbar_lab
 from .icons import Icons, icon
 from styles.colors import Colors
 from styles.stylesheet import StyleSheet
+from ui.scaling import build_screen_metrics
 
 
 class PlotPage(QWidget):
@@ -47,6 +48,7 @@ class PlotPage(QWidget):
 
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(main_window)
         self.main_window = main_window
         self.setStyleSheet(f"background-color: {Colors.BG_PANEL};")
         self.sidebar_visible = False
@@ -55,7 +57,7 @@ class PlotPage(QWidget):
         self._toolbar = None
         self._sidebar_anim_started_at = None
         self._sidebar_anim_target = None
-        self._sidebar_width = 300
+        self._sidebar_width = metrics.plot_sidebar_width
         self._plot_column = None
         self._plot_column_layout = None
         self._table_drawer_open = False
@@ -102,6 +104,7 @@ class PlotPage(QWidget):
         self._init_plot_profiler()
 
     def _setup_ui(self):
+        metrics = build_screen_metrics(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -163,12 +166,12 @@ class PlotPage(QWidget):
         # ── Drawer header bar ──
         drawer_header = QWidget()
         drawer_header.setObjectName("drawerHeader")
-        drawer_header.setFixedHeight(32)
+        drawer_header.setFixedHeight(metrics.drawer_header_height)
         drawer_header.setStyleSheet(StyleSheet.get_drawer_header_style())
         self.drawer_header = drawer_header
         dh_layout = QHBoxLayout(drawer_header)
-        dh_layout.setContentsMargins(12, 0, 12, 0)
-        dh_layout.setSpacing(6)
+        dh_layout.setContentsMargins(10 if metrics.compact else 12, 0, 10 if metrics.compact else 12, 0)
+        dh_layout.setSpacing(5 if metrics.compact else 6)
 
         # Data / Triangles toggle
         self._drawer_mode_group = QButtonGroup(self)
@@ -178,12 +181,12 @@ class PlotPage(QWidget):
         self._data_mode_btn.setCheckable(True)
         self._data_mode_btn.setChecked(True)
         self._data_mode_btn.setCursor(Qt.PointingHandCursor)
-        self._data_mode_btn.setFixedHeight(22)
+        self._data_mode_btn.setFixedHeight(max(20, metrics.toolbar_pill_height - 2))
 
         self._tri_mode_btn = QPushButton("Triangles")
         self._tri_mode_btn.setCheckable(True)
         self._tri_mode_btn.setCursor(Qt.PointingHandCursor)
-        self._tri_mode_btn.setFixedHeight(22)
+        self._tri_mode_btn.setFixedHeight(max(20, metrics.toolbar_pill_height - 2))
 
         for btn in (self._data_mode_btn, self._tri_mode_btn):
             btn.setStyleSheet(f"""
@@ -218,7 +221,7 @@ class PlotPage(QWidget):
         dh_layout.addStretch()
 
         drag_pill = QFrame()
-        drag_pill.setFixedSize(32, 4)
+        drag_pill.setFixedSize(28 if metrics.compact else 32, 4)
         drag_pill.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.BORDER_STRONG};
@@ -462,20 +465,21 @@ class PlotPage(QWidget):
 
     def _create_plot_toolbar(self):
         """Create a compact 46px toolbar for plot controls."""
+        metrics = build_screen_metrics(self)
         toolbar = QWidget()
         toolbar.setObjectName("plotToolbar")
-        toolbar.setFixedHeight(46)
+        toolbar.setFixedHeight(metrics.toolbar_height)
         toolbar.setStyleSheet(StyleSheet.get_toolbar_compact_style())
 
         tl = QHBoxLayout(toolbar)
-        tl.setContentsMargins(10, 4, 10, 4)
-        tl.setSpacing(6)
+        tl.setContentsMargins(8 if metrics.compact else 10, 4, 8 if metrics.compact else 10, 4)
+        tl.setSpacing(5 if metrics.compact else 6)
 
         # ── Sidebar toggle (hamburger icon) ──
         self.sidebar_toggle_btn = QToolButton()
         self.sidebar_toggle_btn.setToolTip("Toggle Sidebar")
         self.sidebar_toggle_btn.setIcon(icon(Icons.BARS, color=Colors.TEXT_SECONDARY))
-        self.sidebar_toggle_btn.setFixedSize(32, 32)
+        self.sidebar_toggle_btn.setFixedSize(metrics.toolbar_button_size, metrics.toolbar_button_size)
         self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
         tl.addWidget(self.sidebar_toggle_btn)
 
@@ -486,7 +490,7 @@ class PlotPage(QWidget):
         self.plot_type_combo = QComboBox()
         self.plot_type_combo.addItems(list(TOOLBAR_PLOT_LABELS))
         self.plot_type_combo.setCurrentText(to_toolbar_label(getattr(self.main_window, "current_plot_type", "2D")))
-        self.plot_type_combo.setFixedHeight(32)
+        self.plot_type_combo.setFixedHeight(metrics.toolbar_control_height)
         self.plot_type_combo.setMinimumWidth(100)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         tl.addWidget(self.plot_type_combo)
@@ -496,7 +500,7 @@ class PlotPage(QWidget):
         self.style_combo = QComboBox()
         self.style_combo.addItems(list(PlotStyles.STYLES.keys()))
         self.style_combo.setCurrentText(str(getattr(self.main_window, "current_plot_style", "Default")))
-        self.style_combo.setFixedHeight(32)
+        self.style_combo.setFixedHeight(metrics.toolbar_control_height)
         self.style_combo.setMinimumWidth(90)
         self.style_combo.currentTextChanged.connect(self._on_style_changed)
         tl.addWidget(self.style_combo)
@@ -507,7 +511,7 @@ class PlotPage(QWidget):
         # ── Toggle pill group (Grid / Legend / Compass) ──
         pill_group = QWidget()
         pill_group.setObjectName("togglePillGroup")
-        pill_group.setFixedHeight(32)
+        pill_group.setFixedHeight(metrics.toolbar_control_height)
         pill_group.setStyleSheet(StyleSheet.get_toggle_pill_group_style())
         pg_layout = QHBoxLayout(pill_group)
         pg_layout.setContentsMargins(3, 0, 3, 0)
@@ -548,7 +552,7 @@ class PlotPage(QWidget):
         self.table_toggle_btn.setToolTip("Toggle attribute table (Ctrl+T)")
         self.table_toggle_btn.setCheckable(True)
         self.table_toggle_btn.setCursor(Qt.PointingHandCursor)
-        self.table_toggle_btn.setFixedHeight(32)
+        self.table_toggle_btn.setFixedHeight(metrics.toolbar_control_height)
         self.table_toggle_btn.toggled.connect(self._toggle_table)
         tl.addWidget(self.table_toggle_btn)
 
@@ -559,7 +563,7 @@ class PlotPage(QWidget):
         self.quick_stats_btn.setToolTip("Toggle quick stats drawer")
         self.quick_stats_btn.setCheckable(True)
         self.quick_stats_btn.setCursor(Qt.PointingHandCursor)
-        self.quick_stats_btn.setFixedHeight(32)
+        self.quick_stats_btn.setFixedHeight(metrics.toolbar_control_height)
         self.quick_stats_btn.toggled.connect(self._toggle_quick_stats)
         tl.addWidget(self.quick_stats_btn)
 
@@ -574,7 +578,7 @@ class PlotPage(QWidget):
         self.add_point_btn.setToolTip("Toggle point creation mode")
         self.add_point_btn.setCheckable(True)
         self.add_point_btn.setCursor(Qt.PointingHandCursor)
-        self.add_point_btn.setFixedHeight(32)
+        self.add_point_btn.setFixedHeight(metrics.toolbar_control_height)
         self.add_point_btn.toggled.connect(self.main_window.set_point_creation_mode)
         tl.addWidget(self.add_point_btn)
 
@@ -582,7 +586,7 @@ class PlotPage(QWidget):
 
         action_group = QWidget()
         action_group.setObjectName("tbActionGroup")
-        action_group.setFixedHeight(32)
+        action_group.setFixedHeight(metrics.toolbar_control_height)
         ag_layout = QHBoxLayout(action_group)
         ag_layout.setContentsMargins(3, 0, 3, 0)
         ag_layout.setSpacing(2)
@@ -590,14 +594,14 @@ class PlotPage(QWidget):
         export_btn = QToolButton()
         export_btn.setIcon(icon(Icons.DOWNLOAD, color=Colors.TEXT_SECONDARY))
         export_btn.setToolTip("Export plot")
-        export_btn.setFixedSize(28, 26)
+        export_btn.setFixedSize(metrics.toolbar_small_button_width, metrics.toolbar_small_button_height)
         export_btn.clicked.connect(self.main_window.on_export)
         ag_layout.addWidget(export_btn)
 
         self.settings_btn = QToolButton()
         self.settings_btn.setIcon(icon(Icons.SETTINGS, color=Colors.TEXT_SECONDARY))
         self.settings_btn.setToolTip("Plot settings")
-        self.settings_btn.setFixedSize(28, 26)
+        self.settings_btn.setFixedSize(metrics.toolbar_small_button_width, metrics.toolbar_small_button_height)
         self.settings_btn.clicked.connect(self.main_window.on_settings)
         ag_layout.addWidget(self.settings_btn)
 
@@ -634,25 +638,25 @@ class PlotPage(QWidget):
 
         self.sidebar_toggle_btn.setText("\u276E" if self.sidebar_visible else "\u2630")
 
-    @staticmethod
-    def _make_divider():
+    def _make_divider(self):
         """Create a thin vertical divider for the toolbar."""
+        metrics = build_screen_metrics(self)
         d = QFrame()
         d.setFrameShape(QFrame.VLine)
-        d.setFixedHeight(18)
+        d.setFixedHeight(max(16, metrics.toolbar_control_height - 12))
         d.setStyleSheet(f"background-color: {Colors.BORDER_MEDIUM}; max-width: 1px; border: none;")
         return d
 
-    @staticmethod
-    def _make_pill_toggle(text: str, tooltip: str, checked: bool, icon_name: str = None):
+    def _make_pill_toggle(self, text: str, tooltip: str, checked: bool, icon_name: str = None):
         """Create a pill-style toggle button for the pill group."""
+        metrics = build_screen_metrics(self)
         btn = QToolButton()
         btn.setText(text)
         btn.setToolTip(tooltip)
         btn.setCheckable(True)
         btn.setChecked(bool(checked))
         btn.setCursor(Qt.PointingHandCursor)
-        btn.setFixedHeight(26)
+        btn.setFixedHeight(metrics.toolbar_pill_height)
         if icon_name:
             btn.setIcon(icon(icon_name, color=Colors.TEXT_SECONDARY))
             btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -1419,6 +1423,8 @@ class PlotPage(QWidget):
         self._set_overlay_perf_notice("")
 
     def apply_theme(self):
+        metrics = build_screen_metrics(self)
+        self._sidebar_width = metrics.plot_sidebar_width
         self.setStyleSheet(f"background-color: {Colors.BG_PANEL};")
         self._rebuild_toolbar()
         self.table_container.setStyleSheet(f"""
@@ -1483,5 +1489,8 @@ class PlotPage(QWidget):
 
         self.plot_widget.apply_theme()
         self.plot_sidebar.apply_theme()
+        self.plot_sidebar.setMinimumWidth(self._sidebar_width)
+        self.plot_sidebar.setMaximumWidth(self._sidebar_width)
+        self._sync_sidebar_overlay_geometry(x=0 if self.sidebar_visible else -int(self._sidebar_width))
         self.data_table.apply_theme()
         self.quick_stats_panel.apply_theme()

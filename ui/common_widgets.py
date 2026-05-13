@@ -15,6 +15,7 @@ from PyQt5.QtGui import QPainter, QColor, QPen
 
 from styles.colors import Colors
 from ui.icons import icon, Icons
+from ui.scaling import build_screen_metrics
 
 
 # ────────────────────────────────────────────────────────
@@ -31,16 +32,18 @@ class SectionHeader(QWidget):
 
     def __init__(self, title: str, icon_name: str = None, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
+        icon_size = 10 if metrics.compact else 12
 
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 12, 0, 4)
-        header_layout.setSpacing(6)
+        header_layout.setContentsMargins(0, 10 if metrics.compact else 12, 0, 4)
+        header_layout.setSpacing(5 if metrics.compact else 6)
 
         # Optional icon
         if icon_name:
             icon_label = QLabel()
-            icon_label.setPixmap(icon(icon_name, color=Colors.ACCENT_PRIMARY).pixmap(QSize(12, 12)))
-            icon_label.setFixedSize(12, 12)
+            icon_label.setPixmap(icon(icon_name, color=Colors.ACCENT_PRIMARY).pixmap(QSize(icon_size, icon_size)))
+            icon_label.setFixedSize(icon_size, icon_size)
             icon_label.setStyleSheet("background-color: transparent;")
             header_layout.addWidget(icon_label)
 
@@ -64,12 +67,12 @@ class SectionHeader(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(4)
+        outer.setSpacing(4 if metrics.compact else 5)
         outer.addLayout(header_layout)
 
         self._content_layout = QVBoxLayout()
         self._content_layout.setContentsMargins(0, 4, 0, 8)
-        self._content_layout.setSpacing(10)
+        self._content_layout.setSpacing(8 if metrics.compact else 10)
         outer.addLayout(self._content_layout)
 
     def contentLayout(self):
@@ -86,8 +89,9 @@ class _TogglePill(QPushButton):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self.setCheckable(True)
-        self.setFixedSize(44, 24)
+        self.setFixedSize(40 if metrics.compact else 44, 22 if metrics.compact else 24)
         self.setCursor(Qt.PointingHandCursor)
         self._hovered = False
         self.setText("")
@@ -143,11 +147,12 @@ class ToggleSwitch(QWidget):
 
     def __init__(self, label_text: str, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self._checked = False
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 6 if metrics.compact else 8, 0, 6 if metrics.compact else 8)
+        layout.setSpacing(10 if metrics.compact else 12)
 
         self.label = QLabel(label_text)
         self.label.setStyleSheet(f"""
@@ -247,8 +252,9 @@ class CompactTogglePill(QPushButton):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self.setCheckable(True)
-        self.setFixedSize(32, 18)
+        self.setFixedSize(30 if metrics.compact else 32, 16 if metrics.compact else 18)
         self.setCursor(Qt.PointingHandCursor)
         self._hovered = False
         self.setText("")
@@ -314,19 +320,24 @@ class ToggleRow(QWidget):
 
     def __init__(self, label_text: str, icon_name: str = None, is_sub: bool = False, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self._checked = False
         self._is_sub = is_sub
         self._sub_options_widget = None
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 6 if not is_sub else 4, 0, 6 if not is_sub else 4)
-        layout.setSpacing(6)
+        base_margin = 5 if metrics.compact else 6
+        sub_margin = 3 if metrics.compact else 4
+        layout.setContentsMargins(0, sub_margin if is_sub else base_margin, 0, sub_margin if is_sub else base_margin)
+        layout.setSpacing(5 if metrics.compact else 6)
 
         # Icon (optional)
         if icon_name:
             icon_label = QLabel()
-            icon_label.setPixmap(icon(icon_name, color=Colors.TEXT_MUTED).pixmap(QSize(10 if is_sub else 12, 10 if is_sub else 12)))
-            icon_label.setFixedSize(14, 14)
+            icon_edge = 10 if (is_sub or metrics.compact) else 12
+            icon_box = 12 if metrics.compact else 14
+            icon_label.setPixmap(icon(icon_name, color=Colors.TEXT_MUTED).pixmap(QSize(icon_edge, icon_edge)))
+            icon_label.setFixedSize(icon_box, icon_box)
             icon_label.setAlignment(Qt.AlignCenter)
             icon_label.setStyleSheet("background-color: transparent;")
             layout.addWidget(icon_label)
@@ -377,16 +388,17 @@ class SubOptionsContainer(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(20, 0, 0, 4)
+        self._layout.setContentsMargins(16 if metrics.compact else 20, 0, 0, 4)
         self._layout.setSpacing(0)
 
         # Visual left border
         self.setStyleSheet(f"""
             SubOptionsContainer {{
                 border-left: 2px solid {Colors.BORDER_MEDIUM};
-                margin-left: 20px;
-                padding-left: 10px;
+                margin-left: {16 if metrics.compact else 20}px;
+                padding-left: {8 if metrics.compact else 10}px;
             }}
         """)
 
@@ -406,6 +418,7 @@ class CardSection(QWidget):
 
     def __init__(self, title: str, icon_name: str = None, icon_color: str = None, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(self)
         self.is_expanded = True
         self._title = title
         self._icon_name = icon_name
@@ -433,13 +446,14 @@ class CardSection(QWidget):
         self._header.setCursor(Qt.PointingHandCursor)
         self._header.mousePressEvent = lambda e: self.toggle_section()
         header_layout = QHBoxLayout(self._header)
-        header_layout.setContentsMargins(12, 10, 12, 10)
-        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(10 if metrics.compact else 12, 8 if metrics.compact else 10, 10 if metrics.compact else 12, 8 if metrics.compact else 10)
+        header_layout.setSpacing(6 if metrics.compact else 8)
 
         # Icon box
         if icon_name:
             icon_box = QFrame()
-            icon_box.setFixedSize(20, 20)
+            icon_box_size = 18 if metrics.compact else 20
+            icon_box.setFixedSize(icon_box_size, icon_box_size)
             # Determine background color based on icon_color
             bg_color = self._get_icon_bg_color()
             icon_box.setStyleSheet(f"""
@@ -452,7 +466,8 @@ class CardSection(QWidget):
             icon_box_layout = QHBoxLayout(icon_box)
             icon_box_layout.setContentsMargins(0, 0, 0, 0)
             icon_lbl = QLabel()
-            icon_lbl.setPixmap(icon(icon_name, color=self._icon_color).pixmap(QSize(10, 10)))
+            icon_edge = 9 if metrics.compact else 10
+            icon_lbl.setPixmap(icon(icon_name, color=self._icon_color).pixmap(QSize(icon_edge, icon_edge)))
             icon_lbl.setAlignment(Qt.AlignCenter)
             icon_lbl.setStyleSheet("background-color: transparent;")
             icon_box_layout.addWidget(icon_lbl)
@@ -495,7 +510,7 @@ class CardSection(QWidget):
         self._body = QWidget()
         self._body.setObjectName("cardBody")
         self._body_layout = QVBoxLayout(self._body)
-        self._body_layout.setContentsMargins(12, 8, 12, 12)
+        self._body_layout.setContentsMargins(10 if metrics.compact else 12, 8 if metrics.compact else 8, 10 if metrics.compact else 12, 10 if metrics.compact else 12)
         self._body_layout.setSpacing(0)
         self._body.setStyleSheet(f"""
             QWidget#cardBody {{

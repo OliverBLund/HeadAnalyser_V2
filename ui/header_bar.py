@@ -15,6 +15,7 @@ from PyQt5.QtGui import QPainter, QColor, QPainterPath, QLinearGradient, QPixmap
 
 from styles.colors import Colors
 from ui.icons import Icons, icon
+from ui.scaling import build_screen_metrics
 from ui.theme_utils import reset_widget_layout
 
 
@@ -40,12 +41,13 @@ TOOLBAR_ICON_MAP = {
 class ToolbarButton(QToolButton):
     """Toolbar button with Font Awesome icons and semantic coloring."""
 
-    def __init__(self, icon_type: str, tooltip: str, parent=None):
+    def __init__(self, icon_type: str, tooltip: str, parent=None, metrics=None):
         super().__init__(parent)
+        metrics = metrics or build_screen_metrics(parent)
         self.icon_type = icon_type
         self.setToolTip(tooltip)
-        self.setFixedSize(28, 26)
-        self.setIconSize(QSize(13, 13))
+        self.setFixedSize(metrics.header_button_width, metrics.header_button_height)
+        self.setIconSize(QSize(metrics.header_icon_size, metrics.header_icon_size))
         self.setCursor(Qt.PointingHandCursor)
         self._hovered = False
 
@@ -134,8 +136,9 @@ class ToolbarButton(QToolButton):
 class ButtonGroup(QWidget):
     """A subtle well/container that groups toolbar buttons."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, metrics=None):
         super().__init__(parent)
+        metrics = metrics or build_screen_metrics(parent)
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: {Colors.BG_WELL};
@@ -144,7 +147,7 @@ class ButtonGroup(QWidget):
             }}
         """)
         self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setFixedHeight(28)
+        self.setFixedHeight(metrics.header_group_height)
 
         self._layout = QHBoxLayout(self)
         # Zero vertical margins for compact look
@@ -174,8 +177,9 @@ class HeaderBar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._metrics = build_screen_metrics(parent)
         # Keep header near original height.
-        self.setFixedHeight(48)
+        self.setFixedHeight(self._metrics.header_height)
         self.setObjectName("headerBar")
         self.setAttribute(Qt.WA_StyledBackground, True)
         self._window_is_maximized = False
@@ -187,10 +191,11 @@ class HeaderBar(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
+        metrics = self._metrics
         layout = QHBoxLayout(self)
         # Keep spacing tight so logo does not push toolbar groups.
-        layout.setContentsMargins(16, 0, 12, 0)
-        layout.setSpacing(6)
+        layout.setContentsMargins(12 if metrics.compact else 16, 0, 10 if metrics.compact else 12, 0)
+        layout.setSpacing(5 if metrics.compact else 6)
 
         # Prominent app logo badge next to title.
         assets_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
@@ -207,7 +212,7 @@ class HeaderBar(QWidget):
             border: 1px solid {Colors.BORDER_SUBTLE};
             border-radius: 7px;
         """)
-        logo_frame.setFixedSize(38, 38)
+        logo_frame.setFixedSize(metrics.header_logo_box_size, metrics.header_logo_box_size)
         logo_frame_layout = QHBoxLayout(logo_frame)
         logo_frame_layout.setContentsMargins(2, 2, 2, 2)
         logo_frame_layout.setSpacing(0)
@@ -228,7 +233,10 @@ class HeaderBar(QWidget):
                 y = max(0, (logo_pixmap.height() - side) // 2)
                 logo_pixmap = logo_pixmap.copy(x, y, side, side)
             logo_pixmap = logo_pixmap.scaled(
-                34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                metrics.header_logo_pixmap_size,
+                metrics.header_logo_pixmap_size,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
             )
             logo_label.setPixmap(logo_pixmap)
             logo_label.setFixedSize(logo_pixmap.size())
@@ -256,93 +264,93 @@ class HeaderBar(QWidget):
         sep.setFrameShape(QFrame.VLine)
         sep.setFrameShadow(QFrame.Plain)
         sep.setFixedWidth(1)
-        sep.setFixedHeight(20)
+        sep.setFixedHeight(metrics.header_separator_height)
         sep.setStyleSheet(f"""
             background-color: {Colors.BORDER_MEDIUM};
             border-radius: 1px;
         """)
         layout.addWidget(sep)
 
-        layout.addSpacing(8)
+        layout.addSpacing(6 if metrics.compact else 8)
 
         # File operations group
-        file_group = ButtonGroup()
-        self.btn_open = ToolbarButton("open", "Open File  (Ctrl+O)")
+        file_group = ButtonGroup(metrics=self._metrics)
+        self.btn_open = ToolbarButton("open", "Open File  (Ctrl+O)", metrics=self._metrics)
         self.btn_open.clicked.connect(self.open_clicked.emit)
         file_group.add_button(self.btn_open)
 
-        self.btn_save = ToolbarButton("save", "Save  (Ctrl+S)")
+        self.btn_save = ToolbarButton("save", "Save  (Ctrl+S)", metrics=self._metrics)
         self.btn_save.clicked.connect(self.save_clicked.emit)
         file_group.add_button(self.btn_save)
 
-        self.btn_export = ToolbarButton("export", "Export Plot  (Ctrl+E)")
+        self.btn_export = ToolbarButton("export", "Export Plot  (Ctrl+E)", metrics=self._metrics)
         self.btn_export.clicked.connect(self.export_clicked.emit)
         file_group.add_button(self.btn_export)
 
-        self.btn_report = ToolbarButton("report", "Generate PDF Report")
+        self.btn_report = ToolbarButton("report", "Generate PDF Report", metrics=self._metrics)
         self.btn_report.clicked.connect(self.report_clicked.emit)
         file_group.add_button(self.btn_report)
 
         layout.addWidget(file_group)
 
-        layout.addSpacing(6)
+        layout.addSpacing(4 if metrics.compact else 6)
 
         # Analysis operations group
-        analysis_group = ButtonGroup()
-        self.btn_calc = ToolbarButton("calc", "Calculation Settings")
+        analysis_group = ButtonGroup(metrics=self._metrics)
+        self.btn_calc = ToolbarButton("calc", "Calculation Settings", metrics=self._metrics)
         self.btn_calc.clicked.connect(self.calc_clicked.emit)
         analysis_group.add_button(self.btn_calc)
 
-        self.btn_table = ToolbarButton("table", "Open Attribute Table  (Ctrl+T)")
+        self.btn_table = ToolbarButton("table", "Open Attribute Table  (Ctrl+T)", metrics=self._metrics)
         self.btn_table.clicked.connect(self.table_clicked.emit)
         analysis_group.add_button(self.btn_table)
 
-        self.btn_sensitivity = ToolbarButton("sensitivity", "Sensitivity Analysis")
+        self.btn_sensitivity = ToolbarButton("sensitivity", "Sensitivity Analysis", metrics=self._metrics)
         self.btn_sensitivity.clicked.connect(self.sensitivity_clicked.emit)
         analysis_group.add_button(self.btn_sensitivity)
 
         layout.addWidget(analysis_group)
 
-        layout.addSpacing(6)
+        layout.addSpacing(4 if metrics.compact else 6)
 
         # Help group
-        help_group = ButtonGroup()
-        self.btn_help = ToolbarButton("help", "Help & Documentation")
+        help_group = ButtonGroup(metrics=self._metrics)
+        self.btn_help = ToolbarButton("help", "Help & Documentation", metrics=self._metrics)
         self.btn_help.clicked.connect(self.help_clicked.emit)
         help_group.add_button(self.btn_help)
 
         layout.addWidget(help_group)
 
-        layout.addSpacing(6)
+        layout.addSpacing(4 if metrics.compact else 6)
 
-        theme_group = ButtonGroup()
-        self.btn_theme = ToolbarButton("theme", self._theme_tooltip())
+        theme_group = ButtonGroup(metrics=self._metrics)
+        self.btn_theme = ToolbarButton("theme", self._theme_tooltip(), metrics=self._metrics)
         self._build_theme_menu()
         self.btn_theme.clicked.connect(self._show_theme_menu)
         theme_group.add_button(self.btn_theme)
         layout.addWidget(theme_group)
 
-        layout.addSpacing(6)
+        layout.addSpacing(4 if metrics.compact else 6)
 
         # Reset group
-        reset_group = ButtonGroup()
-        self.btn_reset = ToolbarButton("reset", "Reset Application")
+        reset_group = ButtonGroup(metrics=self._metrics)
+        self.btn_reset = ToolbarButton("reset", "Reset Application", metrics=self._metrics)
         self.btn_reset.clicked.connect(self.reset_clicked.emit)
         reset_group.add_button(self.btn_reset)
 
         layout.addWidget(reset_group)
-        layout.addSpacing(10)
+        layout.addSpacing(8 if metrics.compact else 10)
 
-        self.window_button_group = ButtonGroup()
-        self.btn_window_minimize = ToolbarButton("win_min", "Minimize")
+        self.window_button_group = ButtonGroup(metrics=self._metrics)
+        self.btn_window_minimize = ToolbarButton("win_min", "Minimize", metrics=self._metrics)
         self.btn_window_minimize.clicked.connect(self.window_minimize_clicked.emit)
         self.window_button_group.add_button(self.btn_window_minimize)
 
-        self.btn_window_maximize = ToolbarButton("win_max", "Maximize")
+        self.btn_window_maximize = ToolbarButton("win_max", "Maximize", metrics=self._metrics)
         self.btn_window_maximize.clicked.connect(self.window_maximize_clicked.emit)
         self.window_button_group.add_button(self.btn_window_maximize)
 
-        self.btn_window_close = ToolbarButton("win_close", "Close")
+        self.btn_window_close = ToolbarButton("win_close", "Close", metrics=self._metrics)
         self.btn_window_close.clicked.connect(self.window_close_clicked.emit)
         self.window_button_group.add_button(self.btn_window_close)
 
@@ -391,6 +399,8 @@ class HeaderBar(QWidget):
             self.btn_window_maximize.update()
 
     def apply_theme(self):
+        self._metrics = build_screen_metrics(self)
+        self.setFixedHeight(self._metrics.header_height)
         reset_widget_layout(self)
         self._setup_ui()
         window = self.window()

@@ -105,12 +105,12 @@ Desktop.ini
 # Local assistant and recovery state
 .claude/
 .recovery/
+.codex_pycache/
 
 # Local scratch artifact from the move
 /_ul
 
 # Local reference and design material
-/assets/
 /concepts/
 /demos/
 /notes/

@@ -8,6 +8,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPen, QPainterPath
 
 from styles.colors import Colors
+from ui.scaling import build_screen_metrics
 from ui.theme_utils import reset_widget_layout
 
 # Icon color mapping
@@ -23,13 +24,14 @@ class NavButton(QPushButton):
 
     def __init__(self, icon_type: str, text: str, parent=None):
         super().__init__(parent)
+        metrics = build_screen_metrics(parent)
         self.icon_type = icon_type
         self.setText("")
         self.setToolTip(text)
         self._active = False
         self._hovered = False
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedSize(52, 48)
+        self.setFixedSize(metrics.nav_button_width, metrics.nav_button_height)
         self.setCheckable(True)
         self._icon_color = ICON_COLORS.get(icon_type, ICON_COLORS["plot"])
         self._update_style()
@@ -100,9 +102,10 @@ class NavButton(QPushButton):
         painter.setPen(pen)
         painter.setBrush(Qt.NoBrush)
 
-        # Offset slightly right to account for left border
-        ix, iy = 27, 24
-        s = 10
+        rect = self.rect()
+        ix = rect.center().x() + 1
+        iy = rect.center().y()
+        s = max(9, min(rect.width(), rect.height()) // 5)
 
         if self.icon_type == "plot":
             # Chart icon
@@ -138,7 +141,8 @@ class NavigationSidebar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(68)
+        metrics = build_screen_metrics(parent)
+        self.setFixedWidth(metrics.nav_width)
         self.setObjectName("navigationSidebar")
         self.setAttribute(Qt.WA_StyledBackground, True)
 
@@ -175,7 +179,9 @@ class NavigationSidebar(QWidget):
             btn.set_active(key == page)
 
     def apply_theme(self):
+        metrics = build_screen_metrics(self)
         active_page = next((key for key, btn in self.buttons.items() if btn.isChecked()), "plot")
+        self.setFixedWidth(metrics.nav_width)
         reset_widget_layout(self)
         self.buttons = {}
         self._setup_ui()
