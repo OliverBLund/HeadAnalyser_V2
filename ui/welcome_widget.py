@@ -245,32 +245,19 @@ class WelcomeWidget(QWidget):
       transparent 20%, {vignette_mid} 55%, {vignette_outer} 100%);
   }}
   .welcome-overlay {{
-    position: fixed; inset: 0; z-index: 10;
-    pointer-events: none;
-    padding: clamp(20px, 4vw, 40px);
-    overflow-y: auto;
-    overflow-x: hidden;
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    pointer-events: none; padding: 40px;
   }}
-  .welcome-shell {{
-    min-height: 100%;
-    width: min(100%, 980px);
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(14px, 2vh, 28px);
-  }}
-  .title-section {{
-    text-align: center;
-    width: min(100%, 700px);
-  }}
+  .title-section {{ text-align: center; margin-bottom: 28px; }}
   .app-logo {{
     display: block;
     width: auto;
-    height: clamp(180px, 28vh, 400px);
-    max-width: min(880px, 92vw);
-    margin: 0 auto -34px auto;
+    height: clamp(225px, 32.5vh, 400px);
+    max-width: min(980px, 95vw);
+    margin: 0 auto -42px auto;
     object-fit: contain;
     object-position: center 76%;
     opacity: 0;
@@ -284,17 +271,17 @@ class WelcomeWidget(QWidget):
     transform: translateY(0);
   }}
   .title-section h1 {{
-    font-size: clamp(32px, 4vw, 42px); font-weight: 800; color: {Colors.TEXT_PRIMARY};
+    font-size: 42px; font-weight: 800; color: {Colors.TEXT_PRIMARY};
     letter-spacing: -1px; margin: 0 0 2px 0; line-height: 1.1;
   }}
   .title-section h1 span {{ color: {Colors.ACCENT_PRIMARY}; }}
   .title-section .tagline {{
-    font-size: clamp(11px, 1.2vw, 13px); font-weight: 400; color: {Colors.TEXT_TERTIARY};
+    font-size: 13px; font-weight: 400; color: {Colors.TEXT_TERTIARY};
     letter-spacing: 0.3px; margin-top: 6px;
   }}
   .version-badge {{
     display: inline-block; margin-top: 10px;
-    font-size: clamp(9px, 0.95vw, 10px); font-weight: 700; color: {Colors.ACCENT_PRIMARY};
+    font-size: 10px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};
     background: {Colors.ACCENT_GHOST};
     border: 1px solid {Colors.BORDER_ACCENT};
     border-radius: 9px; padding: 3px 12px;
@@ -302,18 +289,16 @@ class WelcomeWidget(QWidget):
   }}
   .card-grid {{
     display: grid;
-    grid-template-columns: minmax(0, 280px) minmax(0, 340px);
+    grid-template-columns: 280px 340px;
     grid-template-rows: auto auto;
-    gap: 10px;
-    width: min(100%, 640px);
-    max-width: 640px;
+    gap: 10px; max-width: 640px;
   }}
   .glass-card {{
     background: {glass_bg};
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid {glass_border};
-    border-radius: 10px; padding: clamp(12px, 1.8vw, 16px) clamp(14px, 2vw, 18px);
+    border-radius: 10px; padding: 16px 18px;
     box-shadow: {glass_shadow};
   }}
   .card-header {{
@@ -335,13 +320,13 @@ class WelcomeWidget(QWidget):
   .card-icon.amber {{ background: {Colors.WARNING_BG}; }}
   .card-icon.amber svg {{ stroke: {Colors.WARNING}; fill: none; }}
   .card-title {{
-    font-size: clamp(10px, 1vw, 11px); font-weight: 700; color: {Colors.TEXT_PRIMARY};
+    font-size: 11px; font-weight: 700; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.4px; text-transform: uppercase;
   }}
   .actions-card {{ grid-column: 1; grid-row: 1; }}
   .btn-primary {{
     display: block; width: 100%; padding: 10px 16px;
-    font-family: inherit; font-size: clamp(11px, 1.1vw, 12px); font-weight: 600;
+    font-family: inherit; font-size: 12px; font-weight: 600;
     color: {Colors.TEXT_INVERSE};
     background: linear-gradient(135deg, {Colors.ACCENT_PRESSED}, {Colors.ACCENT_PRIMARY});
     border: none; border-radius: 7px; cursor: pointer;
@@ -355,7 +340,7 @@ class WelcomeWidget(QWidget):
   }}
   .btn-secondary {{
     display: block; width: 100%; padding: 9px 16px;
-    font-family: inherit; font-size: clamp(11px, 1.1vw, 12px); font-weight: 500;
+    font-family: inherit; font-size: 12px; font-weight: 500;
     color: {Colors.TEXT_SECONDARY};
     background: {secondary_bg};
     border: 1px solid {secondary_border};
@@ -388,11 +373,11 @@ class WelcomeWidget(QWidget):
   .recent-item:hover .recent-dot {{ opacity: 1; }}
   .recent-info {{ flex: 1; min-width: 0; }}
   .recent-name {{
-    font-size: clamp(11px, 1.1vw, 12px); font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: 12px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
     white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; line-height: 1.3;
   }}
-  .recent-meta {{ font-size: clamp(9px, 0.95vw, 10px); color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
+  .recent-meta {{ font-size: 10px; color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
   .recent-meta span {{ color: {Colors.TEXT_TERTIARY}; }}
   .empty-recent {{
     text-align: center; padding: 24px 0;
@@ -403,13 +388,12 @@ class WelcomeWidget(QWidget):
   .shortcut-item {{
     display: flex; align-items: center;
     justify-content: space-between; padding: 4px 0;
-    gap: 10px;
   }}
-  .shortcut-label {{ font-size: clamp(10px, 1vw, 11px); color: {Colors.TEXT_SECONDARY}; }}
+  .shortcut-label {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; }}
   .shortcut-keys {{ display: flex; gap: 3px; }}
   .kbd {{
     font-family: 'SF Mono', 'Consolas', monospace;
-    font-size: clamp(8px, 0.85vw, 9px); font-weight: 600; color: {Colors.TEXT_SECONDARY};
+    font-size: 9px; font-weight: 600; color: {Colors.TEXT_SECONDARY};
     background: {kbd_bg};
     border: 1px solid {kbd_border};
     border-radius: 3px; padding: 2px 5px; line-height: 1.3;
@@ -434,83 +418,116 @@ class WelcomeWidget(QWidget):
   .tag-improved {{ background: {Colors.INFO_BG}; color: {Colors.INFO}; }}
   .tag-fixed {{ background: {Colors.WARNING_BG}; color: {Colors.WARNING}; }}
   .changelog-text {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; line-height: 1.4; }}
-  .welcome-footer {{
-    width: min(100%, 640px);
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 2px;
-  }}
   .dtu-logo {{
-    position: static;
+    position: fixed;
+    bottom: 25px;
+    left: 30px;
     max-width: 65px;
     max-height: 65px;
     object-fit: contain;
     opacity: 0.9;
+    z-index: 100;
     pointer-events: none;
   }}
   .author-credit {{
-    position: static;
+    position: fixed;
+    bottom: 25px;
+    right: 30px;
     text-align: right;
+    z-index: 100;
     pointer-events: none;
   }}
   .author-name {{
-    font-size: clamp(11px, 1.15vw, 13px); font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: 13px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.5px;
     text-shadow: none;
   }}
   .author-sub {{
-    font-size: clamp(9px, 0.95vw, 10px); color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
+    font-size: 10px; color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
     font-weight: 500;
   }}
-  @media (max-width: 1180px), (max-height: 820px) {{
-    .welcome-shell {{
-      justify-content: flex-start;
-      gap: 16px;
+  @media (max-width: 1180px), (max-height: 860px) {{
+    .welcome-overlay {{
+      justify-content: center;
+      padding: 24px 20px 110px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }}
+    .title-section {{
+      margin-bottom: 18px;
     }}
     .app-logo {{
-      height: clamp(150px, 22vh, 240px);
-      max-width: min(760px, 90vw);
-      margin: 0 auto -20px auto;
+      height: clamp(170px, 24vh, 240px);
+      max-width: min(760px, 88vw);
+      margin: 0 auto -24px auto;
     }}
     .title-section h1 {{
-      font-size: clamp(28px, 4vw, 36px);
-    }}
-    .card-grid {{
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: none;
-      width: min(100%, 720px);
-      max-width: 720px;
-      gap: 8px;
-    }}
-    .actions-card, .recent-card, .tips-card, .changelog-card {{
-      grid-column: auto;
-      grid-row: auto;
-    }}
-    .changelog-list {{
-      grid-template-columns: 1fr;
-    }}
-    .welcome-footer {{
-      width: min(100%, 720px);
-    }}
-  }}
-  @media (max-width: 760px), (max-height: 680px) {{
-    .welcome-overlay {{
-      padding: 16px 12px 20px;
-    }}
-    .welcome-shell {{
-      gap: 12px;
+      font-size: clamp(30px, 4vw, 36px);
     }}
     .title-section .tagline {{
+      font-size: 12px;
+    }}
+    .version-badge {{
+      margin-top: 8px;
+      font-size: 9px;
+      padding: 3px 10px;
+    }}
+    .card-grid {{
+      grid-template-columns: 252px 308px;
+      grid-template-rows: auto auto;
+      width: 570px;
+      max-width: 570px;
+      gap: 8px;
+    }}
+    .glass-card {{
+      padding: 14px 16px;
+    }}
+    .dtu-logo {{
+      bottom: 18px;
+      left: 20px;
+      max-width: 54px;
+      max-height: 54px;
+    }}
+    .author-credit {{
+      bottom: 18px;
+      right: 20px;
+    }}
+    .author-name {{
+      font-size: 12px;
+    }}
+    .author-sub {{
+      font-size: 9px;
+    }}
+  }}
+  @media (max-width: 760px), (max-height: 700px) {{
+    .welcome-overlay {{
+      justify-content: flex-start;
+      padding: 18px 12px 24px;
+    }}
+    .title-section {{
+      margin-bottom: 14px;
+    }}
+    .app-logo {{
+      height: clamp(132px, 20vh, 180px);
+      max-width: min(520px, 92vw);
+      margin: 0 auto -16px auto;
+    }}
+    .title-section h1 {{
+      font-size: 27px;
+    }}
+    .title-section .tagline {{
+      font-size: 11px;
       max-width: 34ch;
       margin-left: auto;
       margin-right: auto;
       line-height: 1.4;
     }}
-    .version-badge {{
-      margin-top: 8px;
-      padding: 3px 10px;
+    .card-grid {{
+      grid-template-columns: 224px 272px;
+      grid-template-rows: auto auto;
+      width: 504px;
+      max-width: 504px;
+      gap: 6px;
     }}
     .glass-card {{
       border-radius: 8px;
@@ -529,24 +546,40 @@ class WelcomeWidget(QWidget):
       width: 12px;
       height: 12px;
     }}
+    .card-title {{
+      font-size: 10px;
+    }}
     .btn-primary, .btn-secondary {{
       padding: 9px 12px;
+      font-size: 11px;
+    }}
+    .recent-item {{
+      padding: 7px 8px;
+    }}
+    .recent-name, .shortcut-label, .changelog-text {{
+      font-size: 10px;
+    }}
+    .recent-meta, .kbd {{
+      font-size: 8px;
     }}
     .shortcut-item {{
-      align-items: flex-start;
-    }}
-    .welcome-footer {{
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
       gap: 8px;
     }}
-    .author-credit {{
-      text-align: center;
-    }}
     .dtu-logo {{
-      max-width: 54px;
-      max-height: 54px;
+      bottom: 12px;
+      left: 12px;
+      max-width: 46px;
+      max-height: 46px;
+    }}
+    .author-credit {{
+      bottom: 12px;
+      right: 12px;
+    }}
+    .author-name {{
+      font-size: 11px;
+    }}
+    .author-sub {{
+      font-size: 8px;
     }}
   }}
 </style>
@@ -559,14 +592,13 @@ class WelcomeWidget(QWidget):
 <div class="vignette"></div>
 
 <div class="welcome-overlay">
-  <div class="welcome-shell">
-    <div class="title-section">
-      {app_logo_html}
-      <h1>Head<span>Analyser</span></h1>
-      <div class="tagline">Hydraulic Head Analysis &amp; Gradient Computation</div>
-      <div class="version-badge">v2.0 beta</div>
-    </div>
-    <div class="card-grid">
+  <div class="title-section">
+    {app_logo_html}
+    <h1>Head<span>Analyser</span></h1>
+    <div class="tagline">Hydraulic Head Analysis &amp; Gradient Computation</div>
+    <div class="version-badge">v2.0 beta</div>
+  </div>
+  <div class="card-grid">
       <div class="glass-card actions-card">
         <div class="card-header">
           <div class="card-icon accent">
@@ -656,14 +688,13 @@ class WelcomeWidget(QWidget):
           <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Point selection dialog for interactive exclusion</span></li>
         </ul>
       </div>
-    </div>
-    <div class="welcome-footer">
-      {dtu_logo_html}
-      <div class="author-credit">
-        <div class="author-name">Created by Oliver Brincks Lund</div>
-        <div class="author-sub">DTU Sustain</div>
-      </div>
-    </div>
+  </div>
+  
+  {dtu_logo_html}
+  
+  <div class="author-credit">
+    <div class="author-name">Created by Oliver Brincks Lund</div>
+    <div class="author-sub">DTU Sustain</div>
   </div>
 </div>
 
