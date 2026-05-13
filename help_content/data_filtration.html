@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Filtration &amp; Settings</title>
+</head>
+<body>
+    <h1>Data Filtration &amp; Calculation Settings</h1>
+
+    <p>HeadAnalyser provides two layers of data control: <strong>data-level filters</strong> that remove individual points, and <strong>calculation settings</strong> that control which triangles are accepted or rejected during gradient analysis.</p>
+
+    <h2>Data Filters (Properties Panel)</h2>
+    <p>The right-hand properties panel contains interactive range sliders that filter your dataset in real time.</p>
+
+    <h3>Depth Range</h3>
+    <p>A dual-handle slider that limits points to a specific depth interval. Only points within the selected range are included in the triangulation. The current min–max values are displayed next to the slider.</p>
+
+    <h3>Hydraulic Head Range</h3>
+    <p>Same dual-handle slider for hydraulic head values. Useful for isolating a specific head interval or removing obvious outliers.</p>
+
+    <div class="note">
+        <strong>Note:</strong> Adjusting a range filter immediately triggers a recalculation of triangles and gradients. The plot and statistics update automatically.
+    </div>
+
+    <h2>Excluded Points</h2>
+    <p>You can manually exclude individual points from the analysis:</p>
+    <ul>
+        <li>Select a point on the plot, then use the Properties panel to exclude it.</li>
+        <li>Excluded points appear in the panel list and can be re-included individually or cleared in bulk.</li>
+        <li>Excluded points can optionally remain visible on the plot with a distinct marker style (e.g. &times; symbol, reduced opacity).</li>
+    </ul>
+
+    <h2>Calculation Settings</h2>
+    <p>Open the <strong>Calculation Settings</strong> dialog from the toolbar to configure the triangle rejection rules. These settings control which triangles are flagged as unreliable and removed from the gradient analysis.</p>
+
+    <table>
+        <tr><th>Parameter</th><th>Description</th><th>Default</th></tr>
+        <tr>
+            <td><strong>Head uncertainty (L)</strong></td>
+            <td>The assumed measurement uncertainty in hydraulic head values. Used to compute gradient uncertainty per triangle.</td>
+            <td>0.01</td>
+        </tr>
+        <tr>
+            <td><strong>Confidence level</strong></td>
+            <td>Statistical confidence level for the uncertainty test. A triangle is rejected if its gradient uncertainty exceeds the threshold derived from this level.</td>
+            <td>0.66 (66%)</td>
+        </tr>
+        <tr>
+            <td><strong>Base:Height low ratio</strong></td>
+            <td>Minimum allowed ratio of shortest side to longest side. Triangles more elongated than this are rejected for poor geometry.</td>
+            <td>0.2</td>
+        </tr>
+        <tr>
+            <td><strong>Base:Height high ratio</strong></td>
+            <td>Maximum allowed ratio (inverse of the low ratio check).</td>
+            <td>8.0</td>
+        </tr>
+        <tr>
+            <td><strong>Max base or height (L)</strong></td>
+            <td>Upper limit on the longest side of a triangle. Very large triangles spanning distant points are rejected.</td>
+            <td>1 &times; 10<sup>9</sup></td>
+        </tr>
+        <tr>
+            <td><strong>Stacked point epsilon</strong></td>
+            <td>Minimum distance between points. Points closer than this are treated as co-located (stacked), and their triangles are rejected.</td>
+            <td>1 &times; 10<sup>-10</sup></td>
+        </tr>
+    </table>
+
+    <h3>Scope</h3>
+    <ul>
+        <li><strong>Per-dataset</strong> (default) — settings apply only to the active dataset tab.</li>
+        <li><strong>Apply globally</strong> — check this box to apply the settings to all open datasets and save them as the new default.</li>
+    </ul>
+    <p>A <strong>Reset to Defaults</strong> button restores the factory values.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> Start with the default settings and review the rejection breakdown on the Statistics page. If too many triangles are rejected, try loosening the base:height ratio or increasing the uncertainty value.
+    </div>
+</body>
+</html>

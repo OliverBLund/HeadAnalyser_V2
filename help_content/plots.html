@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plots &amp; Visualisation</title>
+</head>
+<body>
+    <h1>Plots &amp; Visualisation</h1>
+
+    <p>The <strong>Plot</strong> page is the main workspace. A compact toolbar along the top lets you switch plot types, toggle overlays, and open drawers. The customisation sidebar on the left provides plot-specific controls.</p>
+
+    <h2>Plot Types</h2>
+
+    <h3>2D Hydraulic Head</h3>
+    <p>A scatter plot of all measurement points coloured by hydraulic head value. Options include:</p>
+    <ul>
+        <li><strong>Colormap</strong> — choose from a range of colour ramps (e.g. viridis, coolwarm, plasma).</li>
+        <li><strong>Point size</strong> — adjust marker radius.</li>
+        <li><strong>Labels</strong> — display point IDs and/or head values. Modes: All, Smart (avoids overlap), Off, or Pinned (only selected).</li>
+        <li><strong>Contour overlay</strong> — add filled contours and/or contour lines with adjustable level count, interpolation method, and spatial extent.</li>
+    </ul>
+
+    <h3>3D Surface</h3>
+    <p>A three-dimensional surface interpolated from the data points. Controls:</p>
+    <ul>
+        <li><strong>Elevation / Azimuth</strong> — rotate the view angle with sliders.</li>
+        <li><strong>Surface alpha</strong> — set transparency of the interpolated surface.</li>
+        <li><strong>Wireframe</strong> — toggle a wireframe overlay on the surface mesh.</li>
+        <li><strong>Colormap</strong> — same selection as 2D.</li>
+    </ul>
+
+    <h3>Gradient Vectors</h3>
+    <p>Displays computed gradient vectors as arrows originating from triangle centroids. Options:</p>
+    <ul>
+        <li><strong>Scale</strong> — control arrow length scaling.</li>
+        <li><strong>Alpha</strong> — arrow transparency.</li>
+        <li><strong>Colormap</strong> — colour arrows by gradient magnitude.</li>
+        <li><strong>Downsampling</strong> — skip vectors in dense areas for clarity.</li>
+        <li><strong>Show points</strong> — overlay the measurement points.</li>
+    </ul>
+
+    <h3>Gradient Histogram</h3>
+    <p>A frequency histogram of all valid gradient values. Controls:</p>
+    <ul>
+        <li><strong>Bin count</strong> — number of histogram bins.</li>
+        <li><strong>Bar / Edge colour</strong> — customise appearance.</li>
+        <li><strong>Statistics overlays</strong> — toggle vertical lines for mean, median, and confidence interval.</li>
+    </ul>
+
+    <h3>Rose Diagram</h3>
+    <p>A polar plot showing the directional distribution of gradient vectors. Options:</p>
+    <ul>
+        <li><strong>Mode</strong> — Count or Frequency.</li>
+        <li><strong>Bins</strong> — number of angular sectors.</li>
+        <li><strong>Mean / Weighted mean lines</strong> — toggle directional statistics.</li>
+        <li><strong>Confidence interval</strong> — show angular spread.</li>
+    </ul>
+
+    <h2>Customisation Sidebar</h2>
+    <p>Click the <strong>&#8801;</strong> (hamburger) button in the plot toolbar to toggle the 220 px customisation sidebar. Its contents change automatically to match the active plot type.</p>
+
+    <h2>Plot Styles</h2>
+    <p>A style selector in the toolbar lets you switch the overall aesthetic:</p>
+    <ul>
+        <li><strong>Default</strong> — standard appearance.</li>
+        <li><strong>Minimal</strong> — reduced chrome, thinner lines.</li>
+        <li><strong>Scientific</strong> — axis ticks and grid suitable for technical documents.</li>
+        <li><strong>Publication</strong> — high-contrast, serif fonts, ready for journals.</li>
+    </ul>
+
+    <h2>Toolbar Toggles</h2>
+    <p>Quick pill-shaped toggles in the toolbar control overlays:</p>
+    <ul>
+        <li><strong>Grid</strong> — show/hide background grid lines.</li>
+        <li><strong>Legend</strong> — show/hide the colour bar or legend.</li>
+        <li><strong>Compass</strong> — show/hide a compass rose on the plot.</li>
+        <li><strong>Dark Canvas</strong> — switch the plot background between light and dark.</li>
+    </ul>
+
+    <h2>Canvas Interaction</h2>
+    <ul>
+        <li><strong>Scroll</strong> to zoom in/out.</li>
+        <li><strong>Click &amp; drag</strong> to pan.</li>
+        <li><strong>Hover</strong> to see coordinate tooltips.</li>
+        <li><strong>Click a point</strong> to select it (highlights connected triangles).</li>
+        <li><strong>Ctrl+Click</strong> to multi-select points.</li>
+    </ul>
+
+    <h2>Bottom Drawers</h2>
+    <p>Two collapsible drawers sit below the plot canvas:</p>
+    <ul>
+        <li><strong>Table drawer</strong> (<strong>&#8801;</strong> button) — shows the attribute data table or the triangle table. Switch between them with the Data / Triangles toggle. Columns are sortable and filterable. Selecting a row highlights the corresponding geometry on the plot.</li>
+        <li><strong>Stats drawer</strong> (<strong>&#8599;</strong> button) — a compact panel with real-time gradient statistics and dataset summary.</li>
+    </ul>
+
+    <div class="tip">
+        <strong>Tip:</strong> Right-click a row in the triangle table to open the <strong>Triangle Inspector</strong> dialog for detailed geometry and rejection analysis.
+    </div>
+</body>
+</html>

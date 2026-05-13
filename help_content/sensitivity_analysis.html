@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sensitivity Analysis</title>
+</head>
+<body>
+    <h1>Sensitivity Analysis</h1>
+
+    <p>The <strong>Sensitivity Analysis</strong> tool helps you understand how robust your gradient and direction results are when calculation parameters change. It systematically varies input settings and re-runs the full triangulation pipeline hundreds of times, then summarises how much your results shift.</p>
+
+    <div class="tip">
+        <strong>Why run a sensitivity analysis?</strong> Hydraulic gradient calculations depend on parameters like base heights and head uncertainty. If small changes to these settings cause large swings in the result, that result may not be reliable enough for a technical report. Sensitivity analysis quantifies this.
+    </div>
+
+    <h2>Analysis Modes</h2>
+
+    <p>HeadAnalyser supports three sensitivity analysis modes, each answering a different question:</p>
+
+    <table>
+        <tr><th>Mode</th><th>Question it answers</th><th>Status</th></tr>
+        <tr>
+            <td><strong>Parameter Sweep</strong></td>
+            <td>How much do results change when I vary calculation parameters (base heights, head uncertainty)?</td>
+            <td>Available</td>
+        </tr>
+        <tr>
+            <td><strong>Leave-One-Out</strong></td>
+            <td>Which measurement points have the most influence on the result? What happens if I remove each one?</td>
+            <td>Coming soon</td>
+        </tr>
+        <tr>
+            <td><strong>Monte Carlo</strong></td>
+            <td>Given random noise in my head measurements, how much uncertainty is in the final gradient?</td>
+            <td>Coming soon</td>
+        </tr>
+    </table>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Add detailed walkthrough for Leave-One-Out mode once implemented
+         - Add detailed walkthrough for Monte Carlo mode once implemented
+         - Include screenshots from each mode
+         ================================================================= -->
+
+    <h2>Parameter Sweep &mdash; How It Works</h2>
+
+    <h3>1. Grid Setup</h3>
+    <p>You choose two settings:</p>
+    <ul>
+        <li><strong>Steps per parameter</strong> (3&ndash;9): how many values to test for each parameter. Total runs = steps&sup3; (e.g. 5 steps = 125 runs).</li>
+        <li><strong>Spread</strong> (10&ndash;100%): how far from the baseline each parameter varies. A spread of 50% means each parameter is tested from 50% below to 50% above its current value.</li>
+    </ul>
+
+    <p>The tool creates a <em>full factorial grid</em> &mdash; every combination of the three parameter values is tested. This ensures interactions between parameters are captured, not just individual effects.</p>
+
+    <h3>2. The Three Parameters</h3>
+    <table>
+        <tr><th>Parameter</th><th>Short name</th><th>What it controls</th></tr>
+        <tr>
+            <td><code>gradient_base_height_low</code></td>
+            <td>BH Low</td>
+            <td>Lower bound of the base-height-to-side-length ratio filter. Triangles with a ratio below this are rejected as too elongated.</td>
+        </tr>
+        <tr>
+            <td><code>gradient_base_height_high</code></td>
+            <td>BH High</td>
+            <td>Upper bound of the base-height-to-side-length ratio filter.</td>
+        </tr>
+        <tr>
+            <td><code>gradient_head_uncertainty</code></td>
+            <td>Head Unc</td>
+            <td>Assumed measurement uncertainty in hydraulic head values (metres). Affects which triangles pass the uncertainty-based rejection filter.</td>
+        </tr>
+    </table>
+
+    <h3>3. What Happens During a Run</h3>
+    <p>For each parameter combination, HeadAnalyser:</p>
+    <ol>
+        <li>Temporarily overrides the three parameters with the scenario values.</li>
+        <li>Re-runs the full Delaunay triangulation and gradient calculation.</li>
+        <li>Applies all rejection filters with the new parameters.</li>
+        <li>Records the resulting average gradient, average direction, rejection ratio, and per-reason rejection counts.</li>
+    </ol>
+
+    <div class="note">
+        <strong>Note:</strong> The point set itself never changes during a parameter sweep &mdash; only the calculation parameters are varied. The same triangles are generated each time; only the filtering changes.
+    </div>
+
+    <h2>Understanding the Results</h2>
+
+    <h3>Tornado Chart</h3>
+    <p>The tornado chart shows which parameter has the <em>most influence</em> on your selected metric. Each horizontal bar represents one parameter. The bar spans from the lowest group-mean to the highest group-mean of that metric when that parameter is varied (averaging over all combinations of the other two parameters).</p>
+    <ul>
+        <li><strong>Longest bar = most influential parameter.</strong> Focus your attention here.</li>
+        <li>The green dashed line shows your current baseline value.</li>
+        <li>If all bars are short, your result is stable &mdash; good news for your report.</li>
+    </ul>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Add annotated screenshot of a real tornado chart
+         - Include a worked example: "In this dataset, BH Low dominates
+           because many triangles are near the rejection threshold..."
+         ================================================================= -->
+
+    <h3>Parameter Response Plot</h3>
+    <p>The scatter plot shows the relationship between one parameter (x-axis) and the selected metric (y-axis). Each dot is a single run. The trend line connects group means.</p>
+    <ul>
+        <li><strong>Linear trend</strong>: the metric responds proportionally to the parameter. Predictable.</li>
+        <li><strong>Step/plateau</strong>: the metric is insensitive over most of the range but jumps at a threshold. Check if your baseline is near that threshold.</li>
+        <li><strong>Wide scatter around trend</strong>: the other two parameters also matter &mdash; this parameter alone doesn't explain the variation.</li>
+        <li>The green diamond marks your baseline.</li>
+    </ul>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Add annotated screenshot of a parameter response plot
+         - Show examples of linear vs. step vs. scattered patterns
+         - Explain what each pattern means for decision-making
+         ================================================================= -->
+
+    <h3>Distribution Histogram</h3>
+    <p>The histogram shows how the selected metric is distributed across all runs. This gives you a sense of the <em>spread</em> of possible outcomes.</p>
+    <ul>
+        <li><strong>Narrow, symmetric</strong>: results are stable. Confidence is high.</li>
+        <li><strong>Wide or bimodal</strong>: results are sensitive. Report the range, not just the mean.</li>
+        <li>The green dashed line shows your baseline value. If it sits near the centre of the distribution, your current settings are "typical". If it's at an edge, your current result may be an extreme case.</li>
+    </ul>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Add annotated screenshot of a distribution histogram
+         - Show a narrow vs. wide example side by side
+         ================================================================= -->
+
+    <h3>Result Envelope KPIs</h3>
+    <p>The right panel shows summary statistics:</p>
+    <table>
+        <tr><th>KPI</th><th>What it means</th></tr>
+        <tr><td><strong>Gradient Range</strong></td><td>Min&ndash;max average gradient across all runs.</td></tr>
+        <tr><td><strong>Direction Range</strong></td><td>Min&ndash;max average direction across all runs.</td></tr>
+        <tr><td><strong>Within &plusmn;10&deg;</strong></td><td>How many runs produced a direction within 10&deg; of baseline. High = direction is robust.</td></tr>
+        <tr><td><strong>Within &plusmn;20%</strong></td><td>How many runs produced a gradient within 20% of baseline. High = gradient is robust.</td></tr>
+        <tr><td><strong>Stability Score</strong></td><td>Product of the two "within" ratios. A single number summarising overall robustness (0&ndash;100%).</td></tr>
+    </table>
+
+    <h3>Fragile Points</h3>
+    <p>Points that frequently appear in triangles that "flip" between kept and rejected across runs. A high fragility score means the point sits right on the edge of a rejection boundary &mdash; small parameter changes toggle its triangles.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> Fragile points are not necessarily bad data &mdash; they may just be in areas where the triangulation geometry is borderline. But they are worth investigating if you need high confidence in your results.
+    </div>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Add a full worked example with real data:
+           1. Show the baseline dataset
+           2. Show the sensitivity dialog settings
+           3. Walk through interpreting each plot
+           4. Show the conclusion: "Based on this analysis, we can
+              report the gradient as X +/- Y with Z% confidence"
+         - Add guidance on choosing steps and spread values
+         - Add section on exporting results (CSV/JSON) and what
+           columns mean
+         ================================================================= -->
+
+    <h2>Exporting Results</h2>
+    <p>After a run completes, you can export the raw data:</p>
+    <ul>
+        <li><strong>CSV</strong>: one row per run, with all parameter values and computed metrics. Suitable for further analysis in Excel or Python.</li>
+        <li><strong>JSON</strong>: structured export including baseline, distributions, fragile points, and run-level detail.</li>
+    </ul>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Document the CSV column names and their units
+         - Document the JSON schema
+         - Add a section on "What to include in your technical report"
+           based on sensitivity analysis results
+         ================================================================= -->
+
+    <h2>Backend Implementation</h2>
+
+    <p>For developers and advanced users: the sensitivity engine lives in <code>core/sensitivity_analysis.py</code>.</p>
+
+    <!-- =================================================================
+         TODO: LETS DO THIS AT SOME POINT
+         - Document SensitivityConfig dataclass fields
+         - Document SensitivityResult dataclass fields
+         - Document the RunResult dataclass fields
+         - Explain how the engine parallelises runs
+         - Explain the fragility score calculation algorithm
+         - Document the rejection_breakdown aggregation
+         - Add code snippets showing how to call the engine
+           programmatically (for scripting / batch use)
+         ================================================================= -->
+
+</body>
+</html>

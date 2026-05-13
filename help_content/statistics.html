@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistics &amp; Analysis</title>
+</head>
+<body>
+    <h1>Statistics &amp; Analysis</h1>
+
+    <p>The <strong>Statistics</strong> page (amber icon in the sidebar) provides a comprehensive dashboard for understanding your triangulation results, gradient distribution, and rejection patterns.</p>
+
+    <h2>Summary Cards</h2>
+    <p>Five cards run across the top of the page:</p>
+    <table>
+        <tr><th>Card</th><th>Description</th></tr>
+        <tr><td><strong>Total Triangles</strong></td><td>The number of Delaunay triangles generated from the point cloud.</td></tr>
+        <tr><td><strong>Kept Triangles</strong></td><td>Triangles that passed all quality constraints.</td></tr>
+        <tr><td><strong>Rejected Triangles</strong></td><td>Triangles removed by one or more filter rules.</td></tr>
+        <tr><td><strong>Kept / Rejected Ratio</strong></td><td>A stacked bar visualisation showing the proportion of kept vs. rejected triangles.</td></tr>
+        <tr><td><strong>Average Gradient</strong></td><td>Mean hydraulic gradient (m/m) computed from kept triangles only.</td></tr>
+    </table>
+
+    <h2>Rejection Breakdown</h2>
+    <p>A horizontal bar chart shows how many triangles were rejected by each rule:</p>
+    <ul>
+        <li><strong>Uncertainty threshold exceeded</strong> — the computed gradient uncertainty exceeds the allowed confidence-based limit.</li>
+        <li><strong>Triangle quality (base:height ratio)</strong> — the triangle is too elongated (below the low ratio or above the high ratio setting).</li>
+        <li><strong>Calculation failure</strong> — the gradient could not be computed (e.g. co-linear or stacked points).</li>
+    </ul>
+    <p>Each bar is labelled with an absolute count and a percentage.</p>
+
+    <h2>Point Frequency Analysis</h2>
+    <p>Bar chart showing how often each measurement point appears in a rejected triangle. A <strong>threshold slider</strong> lets you filter to only show points that exceed a specified rejection rate, which is useful for identifying problematic wells.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> Points with a high rejection frequency may have erroneous head values or may sit in areas of poor spatial coverage. Consider excluding them via the Properties panel.
+    </div>
+
+    <h2>Triangle Table</h2>
+    <p>A full table of all triangles (kept and rejected) with the following columns:</p>
+    <ul>
+        <li><strong>Point IDs</strong> — the three vertices.</li>
+        <li><strong>Gradient</strong> — computed hydraulic gradient (m/m).</li>
+        <li><strong>Angle</strong> — gradient direction (degrees from north).</li>
+        <li><strong>Status</strong> — <em>Kept</em> or <em>Rejected</em>.</li>
+        <li><strong>Rejection reason</strong> — which rule caused rejection (if applicable).</li>
+    </ul>
+    <p>Columns are sortable. Filter pills at the top allow quick text-based filtering.</p>
+
+    <h2>Geometry Plot</h2>
+    <p>A matplotlib visualisation of the triangulation mesh. Hovering or selecting rows in the table highlights the corresponding triangles. A heatmap toggle colours triangles by gradient magnitude.</p>
+
+    <h2>Triangle Inspector</h2>
+    <p>Select one or more points (or right-click a triangle row) and click <strong>Inspect</strong> to open the <strong>Triangle Inspector</strong> dialog. This pop-up provides a focused view of only the triangles associated with your selection:</p>
+    <ul>
+        <li>Summary cards (total / kept / rejected / ratio / avg. gradient).</li>
+        <li>Geometry plot with point coordinates.</li>
+        <li>Rejection breakdown and per-point frequency bars.</li>
+        <li>Filterable triangle table.</li>
+    </ul>
+
+    <h2>Export</h2>
+    <p>Click the <strong>Export</strong> button on the Statistics page to save all rejected triangle data as a CSV file for external analysis.</p>
+</body>
+</html>

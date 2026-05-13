@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Getting Started</title>
+</head>
+<body>
+    <h1>Getting Started with HeadAnalyser</h1>
+
+    <p>Welcome to <strong>HeadAnalyser V2</strong> — a specialised tool for analysing hydraulic head data and computing groundwater gradients using Delaunay triangulation.</p>
+
+    <h2>Introduction</h2>
+    <p>HeadAnalyser lets you load point-based hydraulic head measurements, visualise them in 2D/3D, compute per-triangle gradients, filter out unreliable triangles, and export publication-ready plots and reports. The entire workflow runs inside a single desktop application.</p>
+
+    <h2>System Requirements</h2>
+    <ul>
+        <li><strong>Operating system:</strong> Windows 10/11 (64-bit).</li>
+        <li><strong>Python:</strong> 3.9 or newer (if running from source).</li>
+        <li><strong>RAM:</strong> 4 GB minimum; 8 GB recommended for large datasets.</li>
+        <li><strong>Display:</strong> 1280 &times; 720 minimum; 1920 &times; 1080 recommended.</li>
+        <li><strong>Optional:</strong> Selenium + ChromeDriver for map screenshots in PDF reports.</li>
+    </ul>
+
+    <h2>Data Requirements</h2>
+    <p>Your data file must contain, at minimum:</p>
+    <ul>
+        <li><strong>Point ID</strong> — a unique identifier for each well or measurement.</li>
+        <li><strong>X coordinate</strong> — easting or longitude.</li>
+        <li><strong>Y coordinate</strong> — northing or latitude.</li>
+        <li><strong>Hydraulic head</strong> — the water-level measurement.</li>
+    </ul>
+    <p>Optional columns such as screen depth, top/bottom elevation, and well depth are supported and will be used for filtering when present. See the <a href="file_formats.html">File Formats</a> page for the full specification.</p>
+
+    <h2>Opening the Program</h2>
+    <p>Launch <code>HeadAnalyser_V2.exe</code> (or run <code>python main.py</code> from source). The <strong>Welcome Screen</strong> appears with quick-action cards:</p>
+    <ul>
+        <li><strong>Open File</strong> — browse for a CSV, Excel, or JSON file.</li>
+        <li><strong>Load Recent</strong> — re-open a previously loaded session.</li>
+        <li><strong>Help</strong> — open this documentation.</li>
+        <li><strong>Contact</strong> — show author and support info.</li>
+    </ul>
+
+    <h2>Quick-Start Walkthrough</h2>
+    <ol>
+        <li><strong>Open a file</strong> — click <em>Open File</em> or press <code>Ctrl+O</code>. Select your data file.</li>
+        <li><strong>Map columns</strong> — if auto-detection fails, the Column Mapping dialog lets you assign X, Y, ID, and Head columns manually.</li>
+        <li><strong>Explore the plot</strong> — the 2D Hydraulic Head plot loads automatically. Scroll to zoom, drag to pan, hover for tooltips.</li>
+        <li><strong>Check statistics</strong> — click the <strong>Statistics</strong> tab in the left sidebar to see gradient summaries, rejection breakdowns, and per-point frequency analysis.</li>
+        <li><strong>Adjust parameters</strong> — open <em>Calculation Settings</em> in the toolbar to tweak uncertainty thresholds and triangle quality filters, then re-run the analysis.</li>
+        <li><strong>Export</strong> — use <em>Export Plot</em> (<code>Ctrl+E</code>) for a single image, or <em>Generate PDF Report</em> for a comprehensive multi-page document.</li>
+    </ol>
+
+    <div class="tip">
+        <strong>Tip:</strong> You can load multiple datasets simultaneously — each opens in its own tab with independent settings.
+    </div>
+</body>
+</html>

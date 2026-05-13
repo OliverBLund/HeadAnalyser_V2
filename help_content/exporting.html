@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Exporting</title>
+</head>
+<body>
+    <h1>Exporting Results</h1>
+
+    <p>HeadAnalyser V2 provides several ways to get your results out of the application: single-plot images, full PDF reports, and CSV data exports.</p>
+
+    <h2>Export Plot</h2>
+    <p>Use <strong>Export Plot</strong> (<code>Ctrl+E</code>) in the toolbar to save the currently visible plot.</p>
+    <ul>
+        <li><strong>PNG</strong> — raster image, ideal for presentations and quick sharing.</li>
+        <li><strong>PDF</strong> — vector format, perfect for publications and large-format printing.</li>
+    </ul>
+    <p>The export uses the current plot size and style settings. For higher resolution, increase the DPI in the Plot Settings dialog before exporting.</p>
+
+    <h2>Generate PDF Report</h2>
+    <p>Click <strong>Generate PDF Report</strong> (<code>Ctrl+R</code>) to open the report configuration dialog. You can choose which content to include:</p>
+
+    <h3>Plots</h3>
+    <p>Checkboxes let you select any combination of the five plot types:</p>
+    <ul>
+        <li>2D Hydraulic Head</li>
+        <li>3D Surface</li>
+        <li>Gradient Vectors</li>
+        <li>Gradient Histogram</li>
+        <li>Rose Diagram</li>
+    </ul>
+
+    <h3>Statistics &amp; Tables</h3>
+    <ul>
+        <li><strong>General statistics</strong> — dataset overview (point count, coordinate ranges, etc.).</li>
+        <li><strong>Gradient statistics</strong> — mean, median, standard deviation of gradients.</li>
+        <li><strong>Valid results table</strong> — all kept triangles with gradient values.</li>
+        <li><strong>Rejected results table</strong> — rejected triangles with rejection reasons.</li>
+        <li><strong>Rejected points analysis</strong> — per-point rejection frequency.</li>
+    </ul>
+
+    <h3>Layout Options</h3>
+    <table>
+        <tr><th>Option</th><th>Range</th><th>Default</th></tr>
+        <tr><td>Plot DPI</td><td>72 – 600</td><td>200</td></tr>
+        <tr><td>Plot width (inches)</td><td>4 – 16</td><td>8</td></tr>
+        <tr><td>Plot height (inches)</td><td>3 – 12</td><td>6</td></tr>
+        <tr><td>Table row limit</td><td>All, 50, 100, 250, 500</td><td>All</td></tr>
+        <tr><td>Landscape mode</td><td>On / Off</td><td>Off</td></tr>
+    </table>
+
+    <h3>Map (Optional)</h3>
+    <p>If the <strong>Include location map</strong> checkbox is enabled, a static map image is rendered. This requires <strong>Selenium</strong> and a compatible <strong>ChromeDriver</strong> installation.</p>
+
+    <div class="note">
+        <strong>Note:</strong> Report generation can take a minute for large datasets with high DPI settings. A progress dialog shows the current step and allows cancellation.
+    </div>
+
+    <h2>Export Rejected Triangles</h2>
+    <p>On the <strong>Statistics</strong> page, the <em>Export</em> button saves all rejected triangle data as a CSV file. This is useful for external analysis or quality-assurance workflows.</p>
+
+    <h2>Data Table Exports</h2>
+    <p>The attribute data table (toggled with <code>Ctrl+T</code>) supports inline editing. Changes to values trigger an automatic recalculation of triangles and gradients.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> For publication-quality figures, switch to the <em>Publication</em> plot style before exporting — it uses high-contrast colours and serif fonts.
+    </div>
+</body>
+</html>

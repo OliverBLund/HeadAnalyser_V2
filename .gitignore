@@ -1,0 +1,120 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Native extensions
+*.so
+
+# Distribution / packaging
+/.Python
+/build/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
+/pip-wheel-metadata/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test, coverage, and type-checker caches
+.coverage
+.coverage.*
+.cache/
+htmlcov/
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.ruff_cache/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+pytestdebug.log
+
+# Translations
+*.mo
+*.pot
+
+# Virtual environments
+.env
+.env.*
+!.env.example
+!.env.sample
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor state
+.idea/
+.vscode/
+.vscode-test/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Qt and frontend build artifacts
+*.qmlc
+*.jsc
+node_modules/
+
+# matplotlib cache
+.matplotlib/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# OS and local machine files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+*.bak
+*.orig
+
+# Local assistant and recovery state
+.claude/
+.recovery/
+
+# Local scratch artifact from the move
+/_ul
+
+# Local reference and design material
+/assets/
+/concepts/
+/demos/
+/notes/
+
+# Project outputs
+/data/
+/exports/

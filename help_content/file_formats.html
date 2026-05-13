@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Formats</title>
+</head>
+<body>
+    <h1>File Formats Guide</h1>
+
+    <p>HeadAnalyser V2 accepts <strong>CSV</strong>, <strong>Excel (.xlsx)</strong>, and <strong>JSON</strong> files. This page describes the expected structure, required columns, and the auto-detection behaviour.</p>
+
+    <h2>CSV &amp; Excel Files</h2>
+    <p>Data should be arranged with one row per measurement point and columns for each attribute. The first row is treated as a header.</p>
+
+    <h3>Required Columns</h3>
+    <table>
+        <tr><th>Field</th><th>Description</th><th>Example header names</th></tr>
+        <tr><td><strong>Point ID</strong></td><td>Unique identifier for each well or measurement point.</td><td><code>ID</code>, <code>PointID</code>, <code>Well_ID</code></td></tr>
+        <tr><td><strong>X Coordinate</strong></td><td>Easting or longitude of the point.</td><td><code>X</code>, <code>Easting</code>, <code>Longitude</code></td></tr>
+        <tr><td><strong>Y Coordinate</strong></td><td>Northing or latitude of the point.</td><td><code>Y</code>, <code>Northing</code>, <code>Latitude</code></td></tr>
+        <tr><td><strong>Hydraulic Head</strong></td><td>Water-level measurement (metres above datum).</td><td><code>Head</code>, <code>Hydraulic_Head</code>, <code>WaterLevel</code></td></tr>
+    </table>
+
+    <h3>Optional Columns</h3>
+    <table>
+        <tr><th>Field</th><th>Description</th></tr>
+        <tr><td>Top Screen</td><td>Top elevation of the well screen (m).</td></tr>
+        <tr><td>Bottom Screen</td><td>Bottom elevation of the well screen (m).</td></tr>
+        <tr><td>Depth</td><td>Measurement depth (m). Used by the depth range filter.</td></tr>
+    </table>
+
+    <h2>JSON Format</h2>
+    <p>JSON files should contain a top-level <code>"data"</code> array of objects. Each object represents one point and uses keys that match the column names described above:</p>
+    <pre><code>{
+  "data": [
+    { "ID": "W-01", "X": 720145.2, "Y": 6178321.5, "Head": 12.34 },
+    { "ID": "W-02", "X": 720210.8, "Y": 6178405.1, "Head": 11.87 }
+  ]
+}</code></pre>
+
+    <h2>Column Mapping Dialog</h2>
+    <p>When you open a file, HeadAnalyser tries to auto-detect the four required columns by matching common header names. If auto-detection fails (or matches incorrectly), the <strong>Column Mapping</strong> dialog appears and lets you assign each field manually via dropdown menus.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> Make sure your coordinates use a consistent projection system. HeadAnalyser assumes a metric coordinate reference system (e.g. UTM) for gradient calculations. The Map view converts from UTM32N (EUREF89) to WGS84 automatically.
+    </div>
+
+    <div class="warning">
+        <strong>Warning:</strong> Rows with missing or non-numeric values in the required columns are silently dropped during import. Check the point count in the status bar to confirm all rows loaded correctly.
+    </div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Interface</title>
+</head>
+<body>
+    <h1>User Interface Overview</h1>
+
+    <p>HeadAnalyser V2 uses a three-column layout: a coloured <strong>navigation sidebar</strong> on the left, the <strong>main workspace</strong> in the centre, and a collapsible <strong>properties panel</strong> on the right.</p>
+
+    <h2>Navigation Sidebar</h2>
+    <p>The narrow sidebar on the far left provides access to the three main pages. Each page has a distinct icon colour so you always know where you are:</p>
+    <ul>
+        <li><strong>Plot</strong> (blue) — the primary visualisation workspace with interactive matplotlib plots.</li>
+        <li><strong>Map</strong> (green) — a geographic map view of your data points.</li>
+        <li><strong>Statistics</strong> (amber) — a dashboard with summary cards, rejection analysis, and triangle tables.</li>
+    </ul>
+
+    <h2>Header / Toolbar</h2>
+    <p>The toolbar runs across the top of the window and contains grouped action buttons:</p>
+
+    <h3>File Operations</h3>
+    <ul>
+        <li><strong>Open File</strong> (<code>Ctrl+O</code>) — load a CSV, Excel, or JSON file.</li>
+        <li><strong>Save</strong> (<code>Ctrl+S</code>) — save the current session.</li>
+        <li><strong>Export Plot</strong> (<code>Ctrl+E</code>) — export the active plot as PNG or PDF.</li>
+        <li><strong>Generate PDF Report</strong> (<code>Ctrl+R</code>) — create a multi-page report with selected plots, tables, and statistics.</li>
+    </ul>
+
+    <h3>Analysis Operations</h3>
+    <ul>
+        <li><strong>Calculation Settings</strong> — open the dialog to configure triangle constraint parameters (uncertainty, confidence level, base-to-height ratios, etc.).</li>
+        <li><strong>Attribute Table</strong> (<code>Ctrl+T</code>) — toggle the data table drawer at the bottom of the plot page.</li>
+    </ul>
+
+    <h3>Help &amp; System</h3>
+    <ul>
+        <li><strong>Help</strong> — open this documentation dialog.</li>
+        <li><strong>Reset Application</strong> — clear all loaded data and return to the welcome screen.</li>
+    </ul>
+
+    <h2>Properties Panel (Right Side)</h2>
+    <p>The properties panel (280 px wide) provides contextual controls for the active dataset:</p>
+    <ul>
+        <li><strong>Data Filters</strong> — dual-handle range sliders for Depth and Hydraulic Head. Adjusting a slider filters points in real time.</li>
+        <li><strong>Excluded Points</strong> — a list of manually excluded point IDs. Points can be removed individually or cleared in bulk.</li>
+        <li><strong>Dataset Context</strong> — at-a-glance info: dataset name, point count, triangle counts (total / valid / rejected), and average gradient.</li>
+    </ul>
+
+    <h2>Status Bar</h2>
+    <p>Along the bottom edge you will find:</p>
+    <ul>
+        <li><strong>Ready indicator</strong> — a green dot confirming the app is idle.</li>
+        <li><strong>File status</strong> — the name of the currently loaded file.</li>
+        <li><strong>Coordinates</strong> — live X/Y position of the mouse cursor on the plot.</li>
+        <li><strong>Gradient</strong> — the gradient value at the current cursor location (when applicable).</li>
+        <li><strong>Point count</strong> — total number of data points.</li>
+        <li><strong>Triangle chips</strong> — Total, Valid (green), and Rejected (red) triangle counts.</li>
+    </ul>
+
+    <h2>Multi-Dataset Tabs</h2>
+    <p>Each loaded file opens in its own tab. Tabs appear just below the toolbar and can be closed with the &times; button. Every tab maintains independent data, filters, plot settings, and triangulation results.</p>
+
+    <div class="note">
+        <strong>Note:</strong> Calculation Settings can optionally be applied globally to all open datasets via the "Apply globally" checkbox.
+    </div>
+</body>
+</html>

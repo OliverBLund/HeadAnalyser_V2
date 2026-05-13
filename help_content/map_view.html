@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Map View</title>
+</head>
+<body>
+    <h1>Map View</h1>
+
+    <p>The <strong>Map</strong> page (green icon in the sidebar) displays your measurement points on an interactive geographic map powered by <em>Folium</em> and OpenStreetMap tiles.</p>
+
+    <h2>Coordinate Conversion</h2>
+    <p>HeadAnalyser assumes that X/Y coordinates in your data are in <strong>UTM Zone 32N (EUREF89 / ETRS89)</strong>. They are automatically converted to WGS84 (latitude/longitude) for map display. If your data uses a different coordinate system, the points may appear in the wrong location on the map.</p>
+
+    <div class="warning">
+        <strong>Warning:</strong> If your points appear far from their expected location, verify that your input coordinates are in UTM32N. Other projections are not currently supported for the map view.
+    </div>
+
+    <h2>Map Features</h2>
+    <ul>
+        <li><strong>Markers</strong> — each data point is shown as a clickable marker on the map.</li>
+        <li><strong>Popups</strong> — clicking a marker opens a popup showing the Point ID and Hydraulic Head value.</li>
+        <li><strong>Pan &amp; Zoom</strong> — use the mouse or on-screen controls to navigate.</li>
+        <li><strong>Tile layer</strong> — OpenStreetMap is the default base map.</li>
+    </ul>
+
+    <h2>Using the Map</h2>
+    <p>The map is primarily a spatial reference tool. It lets you confirm that your points are in the correct geographic location and helps you understand the spatial distribution of your measurement network.</p>
+
+    <div class="tip">
+        <strong>Tip:</strong> You can include a static map image in your PDF report. Enable the <em>Include location map</em> option in the report dialog. Note that this feature requires Selenium and ChromeDriver.
+    </div>
+</body>
+</html>
