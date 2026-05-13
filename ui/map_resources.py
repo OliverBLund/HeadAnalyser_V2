@@ -349,8 +349,8 @@ body {
   border-radius: var(--r-sm); text-transform: uppercase;
 }
 .selection-badge.neutral { background: var(--bg-well); color: var(--text-tertiary); }
-.selection-badge.included { background: rgba(74, 222, 128, 0.15); color: var(--success); border: 1px solid rgba(74, 222, 128, 0.25); }
-.selection-badge.excluded { background: rgba(248, 113, 113, 0.15); color: var(--error); border: 1px solid rgba(248, 113, 113, 0.25); }
+.selection-badge.included { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+.selection-badge.excluded { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
 
 .selection-rows { display: flex; flex-direction: column; gap: 6px; }
 .selection-row { display: flex; justify-content: space-between; align-items: center; }
@@ -369,7 +369,7 @@ body {
   transition: all var(--duration) var(--ease);
 }
 .selection-btn:hover { border-color: var(--accent-border); color: var(--accent-text); }
-.selection-btn.danger:hover { border-color: rgba(248,113,113,0.3); color: var(--error); }
+.selection-btn.danger:hover { border-color: var(--error-border); color: var(--error); }
 
 
 /* STACKED INTAKE STYLES */
@@ -1912,9 +1912,12 @@ def _map_theme_root_css() -> str:
 
   --success: {Colors.SUCCESS};
   --success-bg: {Colors.SUCCESS_BG};
+  --success-border: {Colors.rgba(Colors.SUCCESS, 0.25)};
   --warning: {Colors.WARNING};
+  --warning-border: {Colors.rgba(Colors.WARNING, 0.30)};
   --error: {Colors.ERROR};
   --error-bg: {Colors.ERROR_BG};
+  --error-border: {Colors.rgba(Colors.ERROR, 0.25)};
   --info: {Colors.INFO};
   --error-ghost: {Colors.ERROR_BG};
 
@@ -1999,7 +2002,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item active" onclick="toggleLayer('points', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #60a5fa;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-points);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Data Points</div>
                     <div class="layer-desc">47 points (44 active)</div>
@@ -2008,7 +2011,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item active" onclick="toggleLayer('excluded', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #6e6e7a;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-excluded);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Excluded Points</div>
                     <div class="layer-desc">3 excluded</div>
@@ -2031,7 +2034,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item active" onclick="toggleLayer('heatmap', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #f87171;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-rejection);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Rejection Heatmap</div>
                     <div class="layer-desc">Spatial density</div>
@@ -2041,7 +2044,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item" onclick="toggleLayer('coverage', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #4ade80;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-coverage);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Coverage Quality</div>
                     <div class="layer-desc">Triangle support</div>
@@ -2051,7 +2054,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item active" onclick="toggleLayer('contours', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #a78bfa;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-contours);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Head Contours</div>
                     <div class="layer-desc">Isolines</div>
@@ -2060,7 +2063,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item" onclick="toggleLayer('vectors', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #fbbf24;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-vectors);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Gradient Vectors</div>
                     <div class="layer-desc">Flow direction</div>
@@ -2069,7 +2072,7 @@ CONCEPT_HTML_OVERLAYS = """
 
             <div class="layer-item" onclick="toggleLayer('main_arrow', this)">
                 <div class="layer-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                <div class="layer-icon-circle" style="background: #60a5fa;"></div>
+                <div class="layer-icon-circle" style="background: var(--layer-selection);"></div>
                 <div class="layer-info">
                     <div class="layer-name">Main Direction Arrow</div>
                     <div class="layer-desc">Mean flow direction</div>

@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy, QPushButton, QToolButton, QGraphicsDropShadowEffect,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QPainter, QColor, QPen
+from PyQt5.QtGui import QPainter, QPen
 
 from styles.colors import Colors
 from ui.icons import icon, Icons
@@ -116,11 +116,11 @@ class _TogglePill(QPushButton):
 
         on = self.isChecked()
         if on:
-            bg = QColor(Colors.ACCENT_PRESSED)
-            border_color = QColor(Colors.ACCENT_PRIMARY)
+            bg = Colors.qcolor(Colors.ACCENT_PRESSED)
+            border_color = Colors.qcolor(Colors.ACCENT_PRIMARY)
         else:
-            bg = QColor(Colors.BG_HOVER)
-            border_color = QColor(Colors.BORDER_MEDIUM)
+            bg = Colors.qcolor(Colors.BG_HOVER)
+            border_color = Colors.qcolor(Colors.BORDER_MEDIUM)
 
         if self.isDown():
             bg = bg.darker(115)
@@ -135,7 +135,7 @@ class _TogglePill(QPushButton):
         knob_d = rect.height() - 6
         y = rect.y() + (rect.height() - knob_d) / 2.0
         x = rect.x() + 3 if not on else rect.right() - 3 - knob_d
-        painter.setBrush(QColor(Colors.BG_ELEVATED))
+        painter.setBrush(Colors.qcolor(Colors.BG_ELEVATED))
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(int(x), int(y), int(knob_d), int(knob_d))
 
@@ -279,11 +279,11 @@ class CompactTogglePill(QPushButton):
 
         on = self.isChecked()
         if on:
-            bg = QColor(Colors.ACCENT_GHOST)
-            border_color = QColor(Colors.ACCENT_PRESSED)
+            bg = Colors.qcolor(Colors.ACCENT_GHOST)
+            border_color = Colors.qcolor(Colors.ACCENT_PRESSED)
         else:
-            bg = QColor("#12131a")  # bg-well from concept
-            border_color = QColor(Colors.BORDER_MEDIUM)
+            bg = Colors.qcolor(Colors.BG_WELL)
+            border_color = Colors.qcolor(Colors.BORDER_MEDIUM)
 
         if self.isDown():
             bg = bg.darker(115)
@@ -299,10 +299,10 @@ class CompactTogglePill(QPushButton):
         y = rect.y() + (rect.height() - knob_d) / 2.0
         if on:
             x = rect.right() - 2 - knob_d
-            knob_color = QColor(Colors.ACCENT_PRIMARY)
+            knob_color = Colors.qcolor(Colors.ACCENT_PRIMARY)
         else:
             x = rect.x() + 2
-            knob_color = QColor(Colors.TEXT_MUTED)
+            knob_color = Colors.qcolor(Colors.TEXT_MUTED)
 
         painter.setBrush(knob_color)
         painter.setPen(Qt.NoPen)
@@ -532,16 +532,7 @@ class CardSection(QWidget):
 
     def _get_icon_bg_color(self):
         """Get a semi-transparent background color based on icon color."""
-        if self._icon_color == Colors.ACCENT_PRIMARY:
-            return "rgba(129, 140, 248, 0.12)"
-        elif self._icon_color == Colors.WARNING:
-            return "rgba(251, 191, 36, 0.12)"
-        elif self._icon_color == Colors.SUCCESS:
-            return "rgba(74, 222, 128, 0.12)"
-        elif self._icon_color == Colors.ERROR:
-            return "rgba(248, 113, 113, 0.12)"
-        else:
-            return "rgba(129, 140, 248, 0.12)"
+        return Colors.tint_surface(self._icon_color or Colors.ACCENT_PRIMARY)
 
     def _update_chevron(self):
         chevron_icon = Icons.CHEVRON_DOWN if self.is_expanded else Icons.CHEVRON_RIGHT

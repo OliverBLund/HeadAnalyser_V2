@@ -82,14 +82,14 @@ class PointCheckboxItem(QFrame):
                 border: 1.5px solid {Colors.ACCENT_PRIMARY};
                 border-radius: 5px;
             """)
-            self.check_box.setPixmap(icon(Icons.CHECK, color="#ffffff").pixmap(10, 10))
+            self.check_box.setPixmap(icon(Icons.CHECK, color=Colors.TEXT_INVERSE).pixmap(10, 10))
 
             self.status_badge.setText("Included")
             self.status_badge.setStyleSheet(f"""
                 font-size: 9px;
                 font-weight: 500;
                 color: {Colors.SUCCESS};
-                background-color: rgba(52, 211, 153, 0.1);
+                background-color: {Colors.SUCCESS_BG};
                 padding: 1px 5px;
                 border-radius: 3px;
             """)
@@ -100,7 +100,7 @@ class PointCheckboxItem(QFrame):
                     border-radius: 0px;
                 }}
                 PointCheckboxItem:hover {{
-                    background-color: rgba(255, 255, 255, 0.04);
+                    background-color: {Colors.OVERLAY_HOVER};
                 }}
             """)
             self.label.setStyleSheet(f"""
@@ -122,7 +122,7 @@ class PointCheckboxItem(QFrame):
                 font-size: 9px;
                 font-weight: 500;
                 color: {Colors.ERROR};
-                background-color: rgba(248, 113, 113, 0.1);
+                background-color: {Colors.ERROR_BG};
                 padding: 1px 5px;
                 border-radius: 3px;
             """)
@@ -134,7 +134,7 @@ class PointCheckboxItem(QFrame):
                     opacity: 0.5;
                 }}
                 PointCheckboxItem:hover {{
-                    background-color: rgba(255, 255, 255, 0.04);
+                    background-color: {Colors.OVERLAY_HOVER};
                 }}
             """)
             self.label.setStyleSheet(f"""
@@ -221,8 +221,8 @@ class PointSelectionDialog(FramelessDialogMixin, QDialog):
         icon_box.setFixedSize(40, 40)
         icon_box.setAlignment(Qt.AlignCenter)
         icon_box.setStyleSheet(f"""
-            background-color: rgba(129, 140, 248, 0.08);
-            border: 1px solid rgba(129, 140, 248, 0.2);
+            background-color: {Colors.tint_surface(Colors.ACCENT_PRIMARY, dark_alpha=0.12, light_alpha=0.10)};
+            border: 1px solid {Colors.BORDER_ACCENT};
             border-radius: 10px;
         """)
         icon_box.setPixmap(icon(Icons.FILTER, color=Colors.ACCENT_PRIMARY).pixmap(18, 18))
@@ -264,7 +264,7 @@ class PointSelectionDialog(FramelessDialogMixin, QDialog):
                 border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: rgba(255, 255, 255, 0.04);
+                background-color: {Colors.OVERLAY_HOVER};
             }}
         """)
         close_btn.clicked.connect(self.reject)
@@ -324,7 +324,7 @@ class PointSelectionDialog(FramelessDialogMixin, QDialog):
         self.clear_search_btn.setIcon(icon(Icons.CLOSE, color=Colors.TEXT_MUTED))
         self.clear_search_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: rgba(255, 255, 255, 0.04);
+                background-color: {Colors.OVERLAY_HOVER};
                 border: none;
                 border-radius: 4px;
             }}
@@ -471,9 +471,9 @@ class PointSelectionDialog(FramelessDialogMixin, QDialog):
                 color: {Colors.TEXT_SECONDARY};
             }}
             QPushButton:hover {{
-                border-color: rgba(129, 140, 248, 0.2);
+                border-color: {Colors.BORDER_ACCENT};
                 color: {Colors.ACCENT_PRIMARY};
-                background: rgba(129, 140, 248, 0.08);
+                background: {Colors.ACCENT_GHOST};
             }}
         """
 
@@ -504,13 +504,12 @@ class PointSelectionDialog(FramelessDialogMixin, QDialog):
                 border-radius: 6px;
                 font-size: 11px;
                 font-weight: 700;
-                color: #ffffff;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(129, 140, 248, 0.85), stop:1 rgba(129, 140, 248, 0.95));
+                color: {Colors.TEXT_INVERSE};
+                background: {Colors.GRADIENT_ACCENT};
                 border: none;
             }}
             QPushButton:hover {{
-                background: {Colors.ACCENT_PRIMARY};
+                background: {Colors.ACCENT_HOVER};
             }}
         """
 

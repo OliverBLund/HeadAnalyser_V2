@@ -211,6 +211,7 @@ class WelcomeWidget(QWidget):
     background: {Colors.BG_APP};
     overflow: hidden;
     width: 100vw; height: 100vh;
+    min-width: 320px;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   }}
   .grid-bg {{
@@ -244,19 +245,32 @@ class WelcomeWidget(QWidget):
       transparent 20%, {vignette_mid} 55%, {vignette_outer} 100%);
   }}
   .welcome-overlay {{
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%; z-index: 10;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    pointer-events: none; padding: 40px;
+    position: fixed; inset: 0; z-index: 10;
+    pointer-events: none;
+    padding: clamp(20px, 4vw, 40px);
+    overflow-y: auto;
+    overflow-x: hidden;
   }}
-  .title-section {{ text-align: center; margin-bottom: 28px; }}
+  .welcome-shell {{
+    min-height: 100%;
+    width: min(100%, 980px);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(14px, 2vh, 28px);
+  }}
+  .title-section {{
+    text-align: center;
+    width: min(100%, 700px);
+  }}
   .app-logo {{
     display: block;
     width: auto;
-    height: clamp(225px, 32.5vh, 400px);
-    max-width: min(980px, 95vw);
-    margin: 0 auto -42px auto;
+    height: clamp(180px, 28vh, 400px);
+    max-width: min(880px, 92vw);
+    margin: 0 auto -34px auto;
     object-fit: contain;
     object-position: center 76%;
     opacity: 0;
@@ -270,17 +284,17 @@ class WelcomeWidget(QWidget):
     transform: translateY(0);
   }}
   .title-section h1 {{
-    font-size: 42px; font-weight: 800; color: {Colors.TEXT_PRIMARY};
+    font-size: clamp(32px, 4vw, 42px); font-weight: 800; color: {Colors.TEXT_PRIMARY};
     letter-spacing: -1px; margin: 0 0 2px 0; line-height: 1.1;
   }}
   .title-section h1 span {{ color: {Colors.ACCENT_PRIMARY}; }}
   .title-section .tagline {{
-    font-size: 13px; font-weight: 400; color: {Colors.TEXT_TERTIARY};
+    font-size: clamp(11px, 1.2vw, 13px); font-weight: 400; color: {Colors.TEXT_TERTIARY};
     letter-spacing: 0.3px; margin-top: 6px;
   }}
   .version-badge {{
     display: inline-block; margin-top: 10px;
-    font-size: 10px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};
+    font-size: clamp(9px, 0.95vw, 10px); font-weight: 700; color: {Colors.ACCENT_PRIMARY};
     background: {Colors.ACCENT_GHOST};
     border: 1px solid {Colors.BORDER_ACCENT};
     border-radius: 9px; padding: 3px 12px;
@@ -288,16 +302,18 @@ class WelcomeWidget(QWidget):
   }}
   .card-grid {{
     display: grid;
-    grid-template-columns: 280px 340px;
+    grid-template-columns: minmax(0, 280px) minmax(0, 340px);
     grid-template-rows: auto auto;
-    gap: 10px; max-width: 640px;
+    gap: 10px;
+    width: min(100%, 640px);
+    max-width: 640px;
   }}
   .glass-card {{
     background: {glass_bg};
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid {glass_border};
-    border-radius: 10px; padding: 16px 18px;
+    border-radius: 10px; padding: clamp(12px, 1.8vw, 16px) clamp(14px, 2vw, 18px);
     box-shadow: {glass_shadow};
   }}
   .card-header {{
@@ -319,13 +335,13 @@ class WelcomeWidget(QWidget):
   .card-icon.amber {{ background: {Colors.WARNING_BG}; }}
   .card-icon.amber svg {{ stroke: {Colors.WARNING}; fill: none; }}
   .card-title {{
-    font-size: 11px; font-weight: 700; color: {Colors.TEXT_PRIMARY};
+    font-size: clamp(10px, 1vw, 11px); font-weight: 700; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.4px; text-transform: uppercase;
   }}
   .actions-card {{ grid-column: 1; grid-row: 1; }}
   .btn-primary {{
     display: block; width: 100%; padding: 10px 16px;
-    font-family: inherit; font-size: 12px; font-weight: 600;
+    font-family: inherit; font-size: clamp(11px, 1.1vw, 12px); font-weight: 600;
     color: {Colors.TEXT_INVERSE};
     background: linear-gradient(135deg, {Colors.ACCENT_PRESSED}, {Colors.ACCENT_PRIMARY});
     border: none; border-radius: 7px; cursor: pointer;
@@ -339,7 +355,7 @@ class WelcomeWidget(QWidget):
   }}
   .btn-secondary {{
     display: block; width: 100%; padding: 9px 16px;
-    font-family: inherit; font-size: 12px; font-weight: 500;
+    font-family: inherit; font-size: clamp(11px, 1.1vw, 12px); font-weight: 500;
     color: {Colors.TEXT_SECONDARY};
     background: {secondary_bg};
     border: 1px solid {secondary_border};
@@ -372,11 +388,11 @@ class WelcomeWidget(QWidget):
   .recent-item:hover .recent-dot {{ opacity: 1; }}
   .recent-info {{ flex: 1; min-width: 0; }}
   .recent-name {{
-    font-size: 12px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: clamp(11px, 1.1vw, 12px); font-weight: 600; color: {Colors.TEXT_PRIMARY};
     white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; line-height: 1.3;
   }}
-  .recent-meta {{ font-size: 10px; color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
+  .recent-meta {{ font-size: clamp(9px, 0.95vw, 10px); color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
   .recent-meta span {{ color: {Colors.TEXT_TERTIARY}; }}
   .empty-recent {{
     text-align: center; padding: 24px 0;
@@ -387,12 +403,13 @@ class WelcomeWidget(QWidget):
   .shortcut-item {{
     display: flex; align-items: center;
     justify-content: space-between; padding: 4px 0;
+    gap: 10px;
   }}
-  .shortcut-label {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; }}
+  .shortcut-label {{ font-size: clamp(10px, 1vw, 11px); color: {Colors.TEXT_SECONDARY}; }}
   .shortcut-keys {{ display: flex; gap: 3px; }}
   .kbd {{
     font-family: 'SF Mono', 'Consolas', monospace;
-    font-size: 9px; font-weight: 600; color: {Colors.TEXT_SECONDARY};
+    font-size: clamp(8px, 0.85vw, 9px); font-weight: 600; color: {Colors.TEXT_SECONDARY};
     background: {kbd_bg};
     border: 1px solid {kbd_border};
     border-radius: 3px; padding: 2px 5px; line-height: 1.3;
@@ -405,6 +422,7 @@ class WelcomeWidget(QWidget):
   .changelog-item {{
     display: flex; align-items: flex-start;
     gap: 8px; padding: 3px 0;
+    min-width: 0;
   }}
   .changelog-tag {{
     flex-shrink: 0; font-size: 8px; font-weight: 700;
@@ -416,33 +434,120 @@ class WelcomeWidget(QWidget):
   .tag-improved {{ background: {Colors.INFO_BG}; color: {Colors.INFO}; }}
   .tag-fixed {{ background: {Colors.WARNING_BG}; color: {Colors.WARNING}; }}
   .changelog-text {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; line-height: 1.4; }}
+  .welcome-footer {{
+    width: min(100%, 640px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 2px;
+  }}
   .dtu-logo {{
-    position: fixed;
-    bottom: 25px;
-    left: 30px;
+    position: static;
     max-width: 65px;
     max-height: 65px;
     object-fit: contain;
     opacity: 0.9;
-    z-index: 100;
     pointer-events: none;
   }}
   .author-credit {{
-    position: fixed;
-    bottom: 25px;
-    right: 30px;
+    position: static;
     text-align: right;
-    z-index: 100;
     pointer-events: none;
   }}
   .author-name {{
-    font-size: 13px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: clamp(11px, 1.15vw, 13px); font-weight: 600; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.5px;
     text-shadow: none;
   }}
   .author-sub {{
-    font-size: 10px; color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
+    font-size: clamp(9px, 0.95vw, 10px); color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
     font-weight: 500;
+  }}
+  @media (max-width: 1180px), (max-height: 820px) {{
+    .welcome-shell {{
+      justify-content: flex-start;
+      gap: 16px;
+    }}
+    .app-logo {{
+      height: clamp(150px, 22vh, 240px);
+      max-width: min(760px, 90vw);
+      margin: 0 auto -20px auto;
+    }}
+    .title-section h1 {{
+      font-size: clamp(28px, 4vw, 36px);
+    }}
+    .card-grid {{
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      width: min(100%, 720px);
+      max-width: 720px;
+      gap: 8px;
+    }}
+    .actions-card, .recent-card, .tips-card, .changelog-card {{
+      grid-column: auto;
+      grid-row: auto;
+    }}
+    .changelog-list {{
+      grid-template-columns: 1fr;
+    }}
+    .welcome-footer {{
+      width: min(100%, 720px);
+    }}
+  }}
+  @media (max-width: 760px), (max-height: 680px) {{
+    .welcome-overlay {{
+      padding: 16px 12px 20px;
+    }}
+    .welcome-shell {{
+      gap: 12px;
+    }}
+    .title-section .tagline {{
+      max-width: 34ch;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.4;
+    }}
+    .version-badge {{
+      margin-top: 8px;
+      padding: 3px 10px;
+    }}
+    .glass-card {{
+      border-radius: 8px;
+      padding: 12px;
+    }}
+    .card-header {{
+      gap: 7px;
+      margin-bottom: 10px;
+    }}
+    .card-icon {{
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+    }}
+    .card-icon svg {{
+      width: 12px;
+      height: 12px;
+    }}
+    .btn-primary, .btn-secondary {{
+      padding: 9px 12px;
+    }}
+    .shortcut-item {{
+      align-items: flex-start;
+    }}
+    .welcome-footer {{
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+    }}
+    .author-credit {{
+      text-align: center;
+    }}
+    .dtu-logo {{
+      max-width: 54px;
+      max-height: 54px;
+    }}
   }}
 </style>
 </head>
@@ -454,110 +559,111 @@ class WelcomeWidget(QWidget):
 <div class="vignette"></div>
 
 <div class="welcome-overlay">
-  <div class="title-section">
-    {app_logo_html}
-    <h1>Head<span>Analyser</span></h1>
-    <div class="tagline">Hydraulic Head Analysis &amp; Gradient Computation</div>
-    <div class="version-badge">v2.0 beta</div>
-  </div>
-  <div class="card-grid">
-    <div class="glass-card actions-card">
-      <div class="card-header">
-        <div class="card-icon accent">
-          <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 14 L8 2 L14 14 Z" fill="none"/>
-          </svg>
+  <div class="welcome-shell">
+    <div class="title-section">
+      {app_logo_html}
+      <h1>Head<span>Analyser</span></h1>
+      <div class="tagline">Hydraulic Head Analysis &amp; Gradient Computation</div>
+      <div class="version-badge">v2.0 beta</div>
+    </div>
+    <div class="card-grid">
+      <div class="glass-card actions-card">
+        <div class="card-header">
+          <div class="card-icon accent">
+            <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 14 L8 2 L14 14 Z" fill="none"/>
+            </svg>
+          </div>
+          <span class="card-title">Get Started</span>
         </div>
-        <span class="card-title">Get Started</span>
-      </div>
-      <button class="btn-primary" onclick="if(window.bridge) bridge.openFile();">
-        <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <rect x="2" y="3" width="12" height="10" rx="1"/>
-          <path d="M2 5.5 L6.5 5.5 L7.5 3 L8.5 5.5"/>
-        </svg>
-        Open File
-      </button>
-      <button class="btn-secondary" onclick="if(window.bridge) bridge.loadRecent();">
-        <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <circle cx="8" cy="8" r="5.5"/>
-          <path d="M8 5 L8 8 L10.5 9.5"/>
-        </svg>
-        Load Recent
-      </button>
-      <div style="display: flex; gap: 10px; margin-top: 6px;">
-        <button class="btn-secondary" onclick="if(window.bridge) bridge.requestContact();" style="margin-top: 0;">
-          Contact
+        <button class="btn-primary" onclick="if(window.bridge) bridge.openFile();">
+          <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <rect x="2" y="3" width="12" height="10" rx="1"/>
+            <path d="M2 5.5 L6.5 5.5 L7.5 3 L8.5 5.5"/>
+          </svg>
+          Open File
         </button>
-        <button class="btn-secondary" onclick="if(window.bridge) bridge.requestHelp();" style="margin-top: 0;">
-          Help
+        <button class="btn-secondary" onclick="if(window.bridge) bridge.loadRecent();">
+          <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="8" cy="8" r="5.5"/>
+            <path d="M8 5 L8 8 L10.5 9.5"/>
+          </svg>
+          Load Recent
         </button>
-      </div>
-    </div>
-
-    <div class="glass-card recent-card">
-      <div class="card-header">
-        <div class="card-icon blue">
-          <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 4 L3 13 L13 13 L13 4"/>
-            <path d="M1 2 L15 2 L15 4 L1 4 Z"/>
-          </svg>
+        <div style="display: flex; gap: 10px; margin-top: 6px;">
+          <button class="btn-secondary" onclick="if(window.bridge) bridge.requestContact();" style="margin-top: 0;">
+            Contact
+          </button>
+          <button class="btn-secondary" onclick="if(window.bridge) bridge.requestHelp();" style="margin-top: 0;">
+            Help
+          </button>
         </div>
-        <span class="card-title">Recent Sessions</span>
       </div>
-      {recent_sessions_html}
-    </div>
 
-    <div class="glass-card tips-card">
-      <div class="card-header">
-        <div class="card-icon amber">
-          <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="5" width="14" height="9" rx="1.5"/>
-            <path d="M4 8 L4 8.01"/><path d="M8 8 L8 8.01"/><path d="M12 8 L12 8.01"/>
-            <path d="M5 11 L11 11"/>
-          </svg>
+      <div class="glass-card recent-card">
+        <div class="card-header">
+          <div class="card-icon blue">
+            <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 4 L3 13 L13 13 L13 4"/>
+              <path d="M1 2 L15 2 L15 4 L1 4 Z"/>
+            </svg>
+          </div>
+          <span class="card-title">Recent Sessions</span>
         </div>
-        <span class="card-title">Shortcuts</span>
+        {recent_sessions_html}
       </div>
-      <ul class="shortcut-list">
-        <li class="shortcut-item"><span class="shortcut-label">Open file</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">O</span></div></li>
-        <li class="shortcut-item"><span class="shortcut-label">Save session</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">S</span></div></li>
-        <li class="shortcut-item"><span class="shortcut-label">Data table</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">T</span></div></li>
-        <li class="shortcut-item"><span class="shortcut-label">Export plot</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div></li>
-      </ul>
-    </div>
 
-    <div class="glass-card changelog-card">
-      <div class="card-header">
-        <div class="card-icon green">
-          <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 2 L4 14"/>
-            <path d="M4 4 Q8 4 8 7 Q8 10 12 10"/>
-            <circle cx="4" cy="2" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
-            <circle cx="4" cy="14" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
-            <circle cx="12" cy="10" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
-          </svg>
+      <div class="glass-card tips-card">
+        <div class="card-header">
+          <div class="card-icon amber">
+            <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="5" width="14" height="9" rx="1.5"/>
+              <path d="M4 8 L4 8.01"/><path d="M8 8 L8 8.01"/><path d="M12 8 L12 8.01"/>
+              <path d="M5 11 L11 11"/>
+            </svg>
+          </div>
+          <span class="card-title">Shortcuts</span>
         </div>
-        <span class="card-title">Changelog</span>
+        <ul class="shortcut-list">
+          <li class="shortcut-item"><span class="shortcut-label">Open file</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">O</span></div></li>
+          <li class="shortcut-item"><span class="shortcut-label">Save session</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">S</span></div></li>
+          <li class="shortcut-item"><span class="shortcut-label">Data table</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">T</span></div></li>
+          <li class="shortcut-item"><span class="shortcut-label">Export plot</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div></li>
+        </ul>
       </div>
-      <ul class="changelog-list">
-        <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Triangle inspection dialog with geometry plots</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Selection inspector for point-level analysis</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Filled contours and contour line overlay on 2D plots</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Calculation settings dialog with filter controls</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Statistics panel with rejection breakdown bars</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-fixed">fix</span><span class="changelog-text">Gradient stacking epsilon for thin triangles</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Per-plot-type HintBar with contextual tips</span></li>
-        <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Point selection dialog for interactive exclusion</span></li>
-      </ul>
+
+      <div class="glass-card changelog-card">
+        <div class="card-header">
+          <div class="card-icon green">
+            <svg viewBox="0 0 16 16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 2 L4 14"/>
+              <path d="M4 4 Q8 4 8 7 Q8 10 12 10"/>
+              <circle cx="4" cy="2" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
+              <circle cx="4" cy="14" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
+              <circle cx="12" cy="10" r="1.2" fill="{Colors.SUCCESS}" stroke="none"/>
+            </svg>
+          </div>
+          <span class="card-title">Changelog</span>
+        </div>
+        <ul class="changelog-list">
+          <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Triangle inspection dialog with geometry plots</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Selection inspector for point-level analysis</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Filled contours and contour line overlay on 2D plots</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Calculation settings dialog with filter controls</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Statistics panel with rejection breakdown bars</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-fixed">fix</span><span class="changelog-text">Gradient stacking epsilon for thin triangles</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-improved">upd</span><span class="changelog-text">Per-plot-type HintBar with contextual tips</span></li>
+          <li class="changelog-item"><span class="changelog-tag tag-new">new</span><span class="changelog-text">Point selection dialog for interactive exclusion</span></li>
+        </ul>
+      </div>
     </div>
-  </div>
-  </div>
-  
-  {dtu_logo_html}
-  
-  <div class="author-credit">
-    <div class="author-name">Created by Oliver Brincks Lund</div>
-    <div class="author-sub">DTU Sustain</div>
+    <div class="welcome-footer">
+      {dtu_logo_html}
+      <div class="author-credit">
+        <div class="author-name">Created by Oliver Brincks Lund</div>
+        <div class="author-sub">DTU Sustain</div>
+      </div>
+    </div>
   </div>
 </div>
 

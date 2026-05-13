@@ -230,7 +230,7 @@ class HelpDialog(FramelessDialogMixin, QDialog):
         if not ok:
             return
         settings = QSettings("DTU", "HeadAnalyser")
-        theme = settings.value("help_theme", "light")
+        theme = settings.value("help_theme", Colors.theme_scheme(), type=str)
         self.web_view.page().runJavaScript(f'setTheme("{theme}");')
 
         # Determine which page to show first
@@ -304,6 +304,57 @@ class HelpDialog(FramelessDialogMixin, QDialog):
     # HTML builder
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _theme_css_vars(theme_name: str = None, selector: str = ":root") -> str:
+        tokens = Colors.theme_tokens(theme_name)
+        scheme = Colors.theme_scheme(theme_name or Colors.current_theme())
+        is_dark = scheme == "dark"
+        card_alpha = 0.82 if is_dark else 0.84
+        card_shadow = "0 2px 20px {0}".format(tokens["SHADOW_MEDIUM"]) if is_dark else "0 2px 16px {0}".format(tokens["SHADOW_MEDIUM"])
+        return f"""
+{selector} {{
+  --page-bg: {tokens["BG_APP"]};
+  --sidebar-bg: {tokens["BG_DARK"]};
+  --sidebar-hover: {tokens["BG_HOVER"]};
+  --sidebar-active: {tokens["BG_SURFACE"]};
+  --sidebar-border: {tokens["BORDER_DEFAULT"]};
+  --card-bg: {Colors.rgba(tokens["BG_ELEVATED"], card_alpha)};
+  --card-border: {tokens["BORDER_DEFAULT"]};
+  --card-shadow: {card_shadow};
+  --text-primary: {tokens["TEXT_PRIMARY"]};
+  --text-secondary: {tokens["TEXT_SECONDARY"]};
+  --text-muted: {tokens["TEXT_TERTIARY"]};
+  --accent: {tokens["ACCENT_PRIMARY"]};
+  --accent-light: {tokens["ACCENT_BRIGHT"]};
+  --accent-bg: {tokens["ACCENT_GHOST"]};
+  --accent-border: {tokens["BORDER_ACCENT"]};
+  --contour-color: {Colors.rgba(tokens["ACCENT_PRIMARY"], 0.08 if not is_dark else 0.06)};
+  --contour-major: {Colors.rgba(tokens["ACCENT_BRIGHT"], 0.14 if not is_dark else 0.12)};
+  --input-bg: {tokens["BG_ELEVATED"]};
+  --input-border: {tokens["BORDER_MEDIUM"]};
+  --scroll-thumb: {tokens["BORDER_STRONG"]};
+  --scroll-track: transparent;
+  --code-bg: {tokens["BG_SURFACE"]};
+  --code-border: {tokens["BORDER_DEFAULT"]};
+  --table-header-bg: {tokens["ACCENT_PRIMARY"]};
+  --table-header-color: {tokens["TEXT_INVERSE"]};
+  --table-row-alt: {tokens["BG_PANEL"]};
+  --table-border: {tokens["BORDER_DEFAULT"]};
+  --note-bg: {tokens["WARNING_BG"]};
+  --note-border: {tokens["WARNING"]};
+  --note-text: {tokens["WARNING_DARK"] if not is_dark else tokens["WARNING_LIGHT"]};
+  --tip-bg: {tokens["SUCCESS_BG"]};
+  --tip-border: {tokens["SUCCESS"]};
+  --tip-text: {tokens["SUCCESS_DARK"] if not is_dark else tokens["SUCCESS_LIGHT"]};
+  --warning-bg: {tokens["ERROR_BG"]};
+  --warning-border: {tokens["ERROR"]};
+  --warning-text: {tokens["ERROR_DARK"] if not is_dark else tokens["ERROR_LIGHT"]};
+  --hr-color: {tokens["BORDER_DEFAULT"]};
+  --link-color: {tokens["ACCENT_PRIMARY"]};
+  --search-highlight: {Colors.rgba(tokens["ACCENT_PRIMARY"], 0.15 if not is_dark else 0.20)};
+}}
+""".strip()
+
     def _build_html(self) -> str:
         nav_html = ""
         for nav_id, label, icon, fname in self.NAV_ITEMS:
@@ -321,89 +372,9 @@ class HelpDialog(FramelessDialogMixin, QDialog):
 <meta charset="UTF-8">
 <style>
 /* ===== CSS Custom Properties ===== */
-:root {{
-  --page-bg: #f8f9fc;
-  --sidebar-bg: #f1f3f8;
-  --sidebar-hover: #e8ebf4;
-  --sidebar-active: #e0e4f0;
-  --sidebar-border: #e2e5ee;
-  --card-bg: rgba(255,255,255,0.82);
-  --card-border: rgba(0,0,0,0.06);
-  --card-shadow: 0 2px 16px rgba(0,0,0,0.06);
-  --text-primary: #1a1c2b;
-  --text-secondary: #4a4d5e;
-  --text-muted: #6b6e80;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-bg: rgba(99,102,241,0.08);
-  --accent-border: rgba(99,102,241,0.22);
-  --contour-color: rgba(99,102,241,0.08);
-  --contour-major: rgba(99,102,241,0.14);
-  --input-bg: #ffffff;
-  --input-border: #d1d5e0;
-  --scroll-thumb: #c4c8d4;
-  --scroll-track: transparent;
-  --code-bg: #f0f2f7;
-  --code-border: #e2e5ee;
-  --table-header-bg: #6366f1;
-  --table-header-color: #ffffff;
-  --table-row-alt: #f8f9fc;
-  --table-border: #e2e5ee;
-  --note-bg: #fffbeb;
-  --note-border: #f59e0b;
-  --note-text: #92400e;
-  --tip-bg: #ecfdf5;
-  --tip-border: #10b981;
-  --tip-text: #065f46;
-  --warning-bg: #fef2f2;
-  --warning-border: #ef4444;
-  --warning-text: #991b1b;
-  --hr-color: #e5e7eb;
-  --link-color: #6366f1;
-  --search-highlight: rgba(99,102,241,0.15);
-}}
+{self._theme_css_vars(Colors.current_theme(), ":root")}
 
-[data-theme="dark"] {{
-  --page-bg: #0f0f12;
-  --sidebar-bg: #141418;
-  --sidebar-hover: #1e1e24;
-  --sidebar-active: #212127;
-  --sidebar-border: #28282f;
-  --card-bg: rgba(26,26,31,0.82);
-  --card-border: rgba(255,255,255,0.06);
-  --card-shadow: 0 2px 20px rgba(0,0,0,0.35);
-  --text-primary: #ececf0;
-  --text-secondary: #a8a8b3;
-  --text-muted: #6e6e7a;
-  --accent: #818cf8;
-  --accent-light: #a5b4fc;
-  --accent-bg: rgba(129,140,248,0.1);
-  --accent-border: rgba(129,140,248,0.25);
-  --contour-color: rgba(129,140,248,0.06);
-  --contour-major: rgba(165,180,252,0.12);
-  --input-bg: #1a1a1f;
-  --input-border: #2f2f37;
-  --scroll-thumb: #3a3a44;
-  --scroll-track: transparent;
-  --code-bg: #1a1a1f;
-  --code-border: #28282f;
-  --table-header-bg: #818cf8;
-  --table-header-color: #ffffff;
-  --table-row-alt: #17171c;
-  --table-border: #28282f;
-  --note-bg: rgba(245,158,11,0.08);
-  --note-border: #f59e0b;
-  --note-text: #fbbf24;
-  --tip-bg: rgba(16,185,129,0.08);
-  --tip-border: #10b981;
-  --tip-text: #34d399;
-  --warning-bg: rgba(239,68,68,0.08);
-  --warning-border: #ef4444;
-  --warning-text: #f87171;
-  --hr-color: #28282f;
-  --link-color: #a5b4fc;
-  --search-highlight: rgba(129,140,248,0.2);
-}}
+{self._theme_css_vars("dark", '[data-theme="dark"]')}
 
 /* ===== Reset & Base ===== */
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}

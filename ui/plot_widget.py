@@ -396,7 +396,7 @@ class PlotCanvas(FigureCanvas):
         )
 
     def _apply_axis_theme(self, ax, fig=None, *, polar: bool = False, is_3d: bool = False):
-        """Apply a consistent, polished white theme to axes immediately after creation.
+        """Apply the active plot-surface theme to axes immediately after creation.
 
         Call this right after fig.clear() + add_subplot() in every draw method.
         This is the single source of truth for plot presentation quality — typography,
@@ -408,19 +408,19 @@ class PlotCanvas(FigureCanvas):
             polar:  True for polar subplots — skips spine/grid manipulation.
             is_3d:  True for 3D subplots — minimal styling only (mpl limits control).
         """
-        WHITE   = "#ffffff"
-        C_TEXT  = "#1a1a1f"   # title / axis labels
-        C_LABEL = "#4a4a55"   # tick labels, secondary text
-        C_SPINE = "#d0d3d8"   # subtle axis border
-        C_GRID  = "#e8eaed"   # very light dotted grid
+        C_FACE = Colors.PLOT_FACE
+        C_TEXT = Colors.PLOT_TEXT
+        C_LABEL = Colors.PLOT_AXIS
+        C_SPINE = Colors.PLOT_SPINE
+        C_GRID = Colors.PLOT_GRID
 
         # Figure background
         if fig is not None:
-            fig.patch.set_facecolor(WHITE)
+            fig.patch.set_facecolor(C_FACE)
 
         # ── 3-D axes: pane colours + labels only (mpl limits control here) ───
         if is_3d:
-            ax.set_facecolor(WHITE)
+            ax.set_facecolor(C_FACE)
             try:
                 for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
                     pane.fill = False
@@ -436,7 +436,7 @@ class PlotCanvas(FigureCanvas):
 
         # ── Polar axes: background + ring + tick labels ───────────────────────
         if polar:
-            ax.set_facecolor(WHITE)
+            ax.set_facecolor(C_FACE)
             ax.grid(False)   # let per-plot show_grid logic control this
             try:
                 ax.spines["polar"].set_color(C_SPINE)
@@ -450,7 +450,7 @@ class PlotCanvas(FigureCanvas):
             return
 
         # ── Standard 2-D axes ────────────────────────────────────────────────
-        ax.set_facecolor(WHITE)
+        ax.set_facecolor(C_FACE)
 
         # Spines: style all 4 with the baseline colour/width.
         # Visibility (hide top/right etc.) is a style decision — handled by PlotStyles.apply_to_axes.
@@ -629,7 +629,7 @@ class PlotCanvas(FigureCanvas):
         """Clear the plot."""
         self.ax.clear()
         self._style_axes()
-        text_color = Colors.PLOT_DARK_TEXT if self._dark else '#505050'
+        text_color = Colors.PLOT_DARK_TEXT if self._dark else Colors.PLOT_AXIS
         # Add empty state message
         self.ax.text(0.5, 0.5, 'No Data Loaded\n\nOpen a file to begin\n(Ctrl+O)',
                     transform=self.ax.transAxes,
@@ -674,14 +674,6 @@ class HintBar(QWidget):
         # The pill container
         self._pill = QFrame(self)
         self._pill.setObjectName("hintPill")
-        self._pill.setStyleSheet(f"""
-            QFrame#hintPill {{
-                background-color: rgba(20, 20, 24, 0.92);
-                border: 1px solid {Colors.BORDER_DEFAULT};
-                border-radius: 14px;
-                padding: 0 4px;
-            }}
-        """)
         self._pill_layout = QHBoxLayout(self._pill)
         self._pill_layout.setContentsMargins(14, 0, 6, 0)
         self._pill_layout.setSpacing(0)
@@ -695,7 +687,24 @@ class HintBar(QWidget):
         self._close_btn.setText("\u2715")
         self._close_btn.setFixedSize(20, 20)
         self._close_btn.setCursor(Qt.PointingHandCursor)
-        self._close_btn.setStyleSheet(f"""
+        self._close_btn.clicked.connect(self._dismiss)
+
+        outer.addWidget(self._pill)
+        outer.addStretch(1)
+        self.apply_theme()
+
+    def _pill_stylesheet(self) -> str:
+        return f"""
+            QFrame#hintPill {{
+                background-color: {Colors.floating_surface(light_base=Colors.BG_ELEVATED)};
+                border: 1px solid {Colors.BORDER_DEFAULT};
+                border-radius: 14px;
+                padding: 0 4px;
+            }}
+        """
+
+    def _close_button_stylesheet(self) -> str:
+        return f"""
             QToolButton#hintClose {{
                 background: transparent;
                 border: none;
@@ -707,15 +716,11 @@ class HintBar(QWidget):
                 background-color: {Colors.BG_HOVER};
                 color: {Colors.TEXT_PRIMARY};
             }}
-        """)
-        self._close_btn.clicked.connect(self._dismiss)
+        """
 
-        outer.addWidget(self._pill)
-        outer.addStretch(1)
-
-    def set_plot_type(self, plot_type: str):
+    def set_plot_type(self, plot_type: str, force: bool = False):
         """Rebuild hint content for the given plot type."""
-        if self._is_dismissed or plot_type == self._current_type:
+        if self._is_dismissed or (not force and plot_type == self._current_type):
             return
         self._current_type = plot_type
 
@@ -743,6 +748,12 @@ class HintBar(QWidget):
 
         self._pill_layout.addWidget(self._close_btn)
         self.setVisible(True)
+
+    def apply_theme(self):
+        self._pill.setStyleSheet(self._pill_stylesheet())
+        self._close_btn.setStyleSheet(self._close_button_stylesheet())
+        if self._current_type is not None:
+            self.set_plot_type(self._current_type, force=True)
 
     def _dismiss(self):
         self._is_dismissed = True
@@ -880,37 +891,24 @@ class PlotWidget(QWidget):
         if self._use_canvas_mask:
             self._schedule_canvas_mask_update()
 
-    def _create_stacked_intake_panel(self):
-        panel = QFrame()
-        panel.setObjectName("stackedIntakePanel")
-        panel.setFixedWidth(336)
-
-        c_bg_panel = Colors.BG_PANEL
-        c_bg_surface = Colors.BG_SURFACE
-        c_bg_elevated = Colors.BG_ELEVATED
-        c_accent = Colors.ACCENT_PRIMARY
-        c_border = Colors.BORDER_DEFAULT
-        c_text_primary = Colors.TEXT_PRIMARY
-        c_text_sec = Colors.TEXT_SECONDARY
-        c_text_muted = Colors.TEXT_TERTIARY
-        c_border_strong = Colors.BORDER_STRONG
-
-        panel.setStyleSheet(f"""
+    def _stacked_panel_stylesheet(self) -> str:
+        header_glow = Colors.rgba(Colors.TEXT_INVERSE if Colors.is_dark() else Colors.TEXT_PRIMARY, 0.03 if Colors.is_dark() else 0.02)
+        header_fade = Colors.rgba(Colors.TEXT_INVERSE if Colors.is_dark() else Colors.TEXT_PRIMARY, 0.0)
+        radio_border = Colors.PLOT_AXIS if Colors.is_dark() else Colors.TEXT_TERTIARY
+        return f"""
             QFrame#stackedIntakePanel {{
-                background-color: {c_bg_panel};
-                border: 1px solid {c_border};
+                background-color: {Colors.BG_PANEL};
+                border: 1px solid {Colors.BORDER_DEFAULT};
                 border-radius: 14px;
             }}
-            
-            /* Header */
             QFrame#stackedPanelHeader {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255,255,255,0.03), stop:1 rgba(255,255,255,0.00));
-                border-bottom: 1px solid {c_border};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {header_glow}, stop:1 {header_fade});
+                border-bottom: 1px solid {Colors.BORDER_DEFAULT};
                 border-top-left-radius: 14px;
                 border-top-right-radius: 14px;
             }}
             QLabel#stackedPanelTitle {{
-                color: {c_text_sec};
+                color: {Colors.TEXT_SECONDARY};
                 font-size: 12px;
                 font-weight: 700;
                 letter-spacing: 0.6px;
@@ -918,69 +916,59 @@ class PlotWidget(QWidget):
                 background: transparent;
             }}
             QLabel#stackedPanelBadge {{
-                background-color: {c_accent};
-                color: #0f1013;
+                background-color: {Colors.ACCENT_PRIMARY};
+                color: {Colors.TEXT_INVERSE};
                 font-size: 10px;
                 font-weight: 700;
                 padding: 3px 8px;
                 border-radius: 9px;
             }}
-            
-            /* Instruction Title */
             QLabel#stackedPanelInstr {{
-                color: {c_text_sec};
+                color: {Colors.TEXT_SECONDARY};
                 font-size: 12px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
                 text-transform: uppercase;
                 margin-bottom: 6px;
             }}
-
-            /* Intake List Item */
             QFrame#intakeRow {{
-                background-color: {c_bg_surface};
-                border: 1px solid {c_border};
+                background-color: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BORDER_DEFAULT};
                 border-radius: 10px;
             }}
             QFrame#intakeRow:hover {{
-                border: 1px solid {c_border_strong};
+                border: 1px solid {Colors.BORDER_STRONG};
             }}
             QFrame#intakeRow[selected="true"] {{
                 border: 1px solid {Colors.BORDER_ACCENT};
-                background-color: {c_bg_surface}; 
+                background-color: {Colors.BG_SURFACE};
             }}
-            
-            /* Text Strings */
             QLabel#intakeTitle {{
-                color: {c_text_primary};
+                color: {Colors.TEXT_PRIMARY};
                 font-size: 12px;
                 font-weight: 700;
             }}
             QLabel#intakeMeta {{
-                color: {c_text_muted};
+                color: {Colors.TEXT_TERTIARY};
                 font-size: 11px;
             }}
-            
-            /* Pill */
             QLabel#intakePill {{
                 font-size: 10px;
                 font-weight: 700;
                 padding: 2px 8px;
                 border-radius: 10px;
-                min-width: 0px; 
+                min-width: 0px;
             }}
             QLabel#intakePill[state="selected"] {{
-                background: {Colors.ACCENT_GHOST};
-                color: {c_accent};
+                background: {Colors.tint_surface(Colors.ACCENT_PRIMARY, dark_alpha=0.18, light_alpha=0.10)};
+                color: {Colors.ACCENT_PRIMARY};
                 border: 1px solid {Colors.BORDER_ACCENT};
             }}
             QLabel#intakePill[state="available"] {{
-                 background-color: transparent;
-                 color: {c_text_muted};
-                 border: 1px solid {c_border}; 
+                background-color: transparent;
+                color: {Colors.TEXT_TERTIARY};
+                border: 1px solid {Colors.BORDER_DEFAULT};
             }}
-            
-            /* Radio Button */
             QRadioButton {{
                 background: transparent;
             }}
@@ -988,20 +976,18 @@ class PlotWidget(QWidget):
                 width: 14px;
                 height: 14px;
                 border-radius: 8px;
-                border: 2px solid #8b93a6;
+                border: 2px solid {radio_border};
                 background: transparent;
             }}
             QRadioButton::indicator:checked {{
-                border: 2px solid {c_accent};
-                background: {c_accent};
+                border: 2px solid {Colors.ACCENT_PRIMARY};
+                background: {Colors.ACCENT_PRIMARY};
                 image: none;
             }}
-            
-            /* Action Buttons */
             QPushButton {{
-                background-color: {c_bg_elevated};
-                border: 1px solid {c_border_strong};
-                color: {c_text_primary};
+                background-color: {Colors.BG_ELEVATED};
+                border: 1px solid {Colors.BORDER_STRONG};
+                color: {Colors.TEXT_PRIMARY};
                 font-size: 11px;
                 font-weight: 700;
                 border-radius: 8px;
@@ -1011,14 +997,33 @@ class PlotWidget(QWidget):
                 background-color: {Colors.BG_HOVER};
             }}
             QPushButton[primary="true"] {{
-                background-color: {c_accent};
-                color: #0f1013;
-                border: 1px solid {c_accent};
+                background-color: {Colors.ACCENT_PRIMARY};
+                color: {Colors.TEXT_INVERSE};
+                border: 1px solid {Colors.ACCENT_PRIMARY};
             }}
             QPushButton[primary="true"]:hover {{
-                background-color: {Colors.ACCENT_BRIGHT};
+                background-color: {Colors.ACCENT_HOVER};
             }}
-        """)
+            QLabel#stackedPanelHint {{
+                color: {Colors.TEXT_MUTED};
+                font-size: 10px;
+                background: transparent;
+            }}
+        """
+
+    def _apply_stacked_panel_theme(self):
+        if hasattr(self, "_stacked_panel") and self._stacked_panel is not None:
+            self._stacked_panel.setStyleSheet(self._stacked_panel_stylesheet())
+        if hasattr(self, "_stacked_panel_note") and self._stacked_panel_note is not None:
+            self._stacked_panel_note.setStyleSheet(
+                f"color: {Colors.TEXT_TERTIARY}; font-size: 11px; line-height: 1.4; margin-top: 4px;"
+            )
+
+    def _create_stacked_intake_panel(self):
+        panel = QFrame()
+        panel.setObjectName("stackedIntakePanel")
+        panel.setFixedWidth(336)
+        panel.setStyleSheet(self._stacked_panel_stylesheet())
         
         main_layout = QVBoxLayout(panel)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -1088,14 +1093,14 @@ class PlotWidget(QWidget):
             "Selection changes gradient calculation target only. Stacked marker remains visually collapsed by default to keep the map clean."
         )
         self._stacked_panel_note.setWordWrap(True)
-        self._stacked_panel_note.setStyleSheet(f"color: {c_text_muted}; font-size: 11px; line-height: 1.4; margin-top: 4px;")
         body_layout.addWidget(self._stacked_panel_note)
     
-        hint = QLabel("Tip: click a displaced marker to select the intake directly.")
-        hint.setObjectName("stackedPanelHint")
-        body_layout.addWidget(hint)
+        self._stacked_panel_hint = QLabel("Tip: click a displaced marker to select the intake directly.")
+        self._stacked_panel_hint.setObjectName("stackedPanelHint")
+        body_layout.addWidget(self._stacked_panel_hint)
         
         main_layout.addWidget(body, 1)
+        self._apply_stacked_panel_theme()
 
         return panel
 
@@ -1303,6 +1308,7 @@ class PlotWidget(QWidget):
         """Switch between dark and light plot canvas."""
         self._dark_canvas = dark
         self.canvas._dark = dark
+        self.canvas._style_axes()
         self._apply_canvas_frame_style()
 
         # Update the figure facecolor (area around axes)
@@ -1310,9 +1316,13 @@ class PlotWidget(QWidget):
             self.canvas.fig.set_facecolor(Colors.PLOT_DARK_BG)
         else:
             self.canvas.fig.set_facecolor(Colors.PLOT_BG)
+        self.canvas.draw_idle()
 
     def apply_theme(self):
         self._apply_canvas_frame_style()
+        self._apply_stacked_panel_theme()
+        self._hint_bar.apply_theme()
+        self.set_dark_canvas(self._dark_canvas)
 
     def _on_coords_changed(self, x, y):
         """Handle coordinate updates from canvas."""

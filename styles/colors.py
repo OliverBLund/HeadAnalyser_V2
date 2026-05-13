@@ -1,5 +1,7 @@
 """Application color tokens with runtime theme switching."""
 
+from PyQt5.QtGui import QColor
+
 
 class Colors:
     """Theme-backed color token registry.
@@ -563,6 +565,11 @@ class Colors:
         return cls._current_theme
 
     @classmethod
+    def theme_tokens(cls, theme_name: str = None) -> dict:
+        theme = cls.normalize_theme(theme_name or cls._current_theme)
+        return dict(cls._THEMES.get(theme, cls._THEMES["dark"]))
+
+    @classmethod
     def is_dark(cls) -> bool:
         return cls.theme_scheme() == "dark"
 
@@ -608,6 +615,45 @@ class Colors:
             return value
         alpha_text = f"{alpha_value:.3f}".rstrip("0").rstrip(".")
         return f"rgba({red}, {green}, {blue}, {alpha_text})"
+
+    @classmethod
+    def qcolor(cls, color_value: str) -> QColor:
+        value = str(color_value or "").strip()
+        if value.lower().startswith("rgba(") and value.endswith(")"):
+            try:
+                parts = [part.strip() for part in value[5:-1].split(",")]
+                red = int(float(parts[0]))
+                green = int(float(parts[1]))
+                blue = int(float(parts[2]))
+                alpha = float(parts[3])
+                alpha = alpha * 255.0 if alpha <= 1.0 else alpha
+                return QColor(red, green, blue, max(0, min(255, int(round(alpha)))))
+            except Exception:
+                pass
+        if value.lower().startswith("rgb(") and value.endswith(")"):
+            try:
+                parts = [part.strip() for part in value[4:-1].split(",")]
+                return QColor(int(float(parts[0])), int(float(parts[1])), int(float(parts[2])))
+            except Exception:
+                pass
+        return QColor(value)
+
+    @classmethod
+    def tint_surface(cls, color_value: str, *, dark_alpha: float = 0.16, light_alpha: float = 0.12) -> str:
+        alpha = dark_alpha if cls.is_dark() else light_alpha
+        return cls.rgba(color_value, alpha)
+
+    @classmethod
+    def floating_surface(
+        cls,
+        *,
+        dark_alpha: float = 0.92,
+        light_alpha: float = 0.96,
+        light_base: str = None,
+    ) -> str:
+        base = cls.BG_DARK if cls.is_dark() else (light_base or cls.BG_ELEVATED)
+        alpha = dark_alpha if cls.is_dark() else light_alpha
+        return cls.rgba(base, alpha)
 
     @classmethod
     def normalize_theme(cls, theme_name: str) -> str:

@@ -10,78 +10,90 @@ class PlotStyles:
     """Plot style definitions for different visualization modes."""
 
     STYLES = {
-        "Default": {
-            'font_family': 'sans-serif',
-            'font_size': 10,
-            'title_size': 13,
-            'label_size': 12,
-            'tick_size': 10,
-            'line_width': 1.0,
-            'grid_alpha': 1.0,
-            'grid_linestyle': ':',
-            'grid_linewidth': 0.65,
-            'grid_color': '#e8eaed',
-            'background': Colors.PLOT_FACE,
-            'text_color': Colors.PLOT_TEXT,
-            'spine_color': Colors.PLOT_SPINE,
-        },
-        "Minimal": {
-            'font_family': 'sans-serif',
-            'font_size': 9,
-            'title_size': 12,
-            'label_size': 11,
-            'tick_size': 9,
-            'line_width': 0.8,
-            'grid_alpha': 1.0,
-            'grid_linestyle': ':',
-            'grid_linewidth': 0.5,
-            'grid_color': '#f0f0f2',
-            'background': Colors.PLOT_FACE,
-            'text_color': Colors.PLOT_TEXT,
-            'spine_color': Colors.PLOT_SPINE,
-        },
-        "Scientific": {
-            'font_family': 'serif',
-            'font_size': 12,
-            'title_size': 16,
-            'label_size': 14,
-            'tick_size': 11,
-            'line_width': 1.5,
-            'grid_alpha': 0.5,  # Strong grid for scientific
-            'grid_linestyle': '-',
-            'grid_linewidth': 0.8,
-            'background': '#ffffff',  # White for publications
-            'text_color': '#000000',  # Black text
-            'spine_color': '#000000',  # Black spines
-        },
-        "Publication": {
-            # Clean, professional style inspired by high-quality publication figures
-            'font_family': 'sans-serif',
-            'font_size': 11,
-            'title_size': 14,
-            'label_size': 12,
-            'tick_size': 10,
-            'line_width': 1.2,
-            'grid_alpha': 0.4,
-            'grid_linestyle': '--',
-            'grid_linewidth': 0.6,
-            'grid_axis': 'y',  # Only horizontal grid lines
-            'background': '#ffffff',
-            'text_color': '#1a1a1a',
-            'spine_color': '#2a2a2a',
-            'spine_width': 1.5,
-            'tick_direction': 'out',
-            'tick_length': 5,
-            'title_weight': 'bold',
-            'label_weight': 'bold',
-            'hide_spines': ['top', 'right'],  # Hide top and right spines
-        }
+        "Default": None,
+        "Minimal": None,
+        "Scientific": None,
+        "Publication": None,
     }
+
+    @classmethod
+    def _build_styles(cls):
+        return {
+            "Default": {
+                'font_family': 'sans-serif',
+                'font_size': 10,
+                'title_size': 13,
+                'label_size': 12,
+                'tick_size': 10,
+                'line_width': 1.0,
+                'grid_alpha': 1.0,
+                'grid_linestyle': ':',
+                'grid_linewidth': 0.65,
+                'grid_color': Colors.PLOT_GRID,
+                'background': Colors.PLOT_FACE,
+                'text_color': Colors.PLOT_TEXT,
+                'spine_color': Colors.PLOT_SPINE,
+            },
+            "Minimal": {
+                'font_family': 'sans-serif',
+                'font_size': 9,
+                'title_size': 12,
+                'label_size': 11,
+                'tick_size': 9,
+                'line_width': 0.8,
+                'grid_alpha': 1.0,
+                'grid_linestyle': ':',
+                'grid_linewidth': 0.5,
+                'grid_color': Colors.PLOT_GRID_MINOR,
+                'background': Colors.PLOT_FACE,
+                'text_color': Colors.PLOT_TEXT,
+                'spine_color': Colors.PLOT_SPINE,
+            },
+            "Scientific": {
+                'font_family': 'serif',
+                'font_size': 12,
+                'title_size': 16,
+                'label_size': 14,
+                'tick_size': 11,
+                'line_width': 1.5,
+                'grid_alpha': 0.5,  # Strong grid for scientific
+                'grid_linestyle': '-',
+                'grid_linewidth': 0.8,
+                'grid_color': Colors.PLOT_GRID,
+                'background': Colors.PLOT_FACE,
+                'text_color': Colors.PLOT_TEXT,
+                'spine_color': Colors.TEXT_PRIMARY,
+            },
+            "Publication": {
+                # Clean, professional style inspired by high-quality publication figures
+                'font_family': 'sans-serif',
+                'font_size': 11,
+                'title_size': 14,
+                'label_size': 12,
+                'tick_size': 10,
+                'line_width': 1.2,
+                'grid_alpha': 0.4,
+                'grid_linestyle': '--',
+                'grid_linewidth': 0.6,
+                'grid_axis': 'y',  # Only horizontal grid lines
+                'grid_color': Colors.PLOT_GRID,
+                'background': Colors.PLOT_FACE,
+                'text_color': Colors.PLOT_TEXT,
+                'spine_color': Colors.PLOT_AXIS,
+                'spine_width': 1.5,
+                'tick_direction': 'out',
+                'tick_length': 5,
+                'title_weight': 'bold',
+                'label_weight': 'bold',
+                'hide_spines': ['top', 'right'],  # Hide top and right spines
+            },
+        }
 
     @classmethod
     def get_style(cls, style_name):
         """Get style dictionary by name."""
-        return cls.STYLES.get(style_name, cls.STYLES["Default"])
+        styles = cls._build_styles()
+        return styles.get(style_name, styles["Default"])
 
     @classmethod
     def apply_to_axes(cls, ax, style_name):
@@ -162,7 +174,7 @@ class PlotStyles:
             'alpha': style['grid_alpha'],
             'linestyle': style['grid_linestyle'],
             'linewidth': style['grid_linewidth'],
-            'color': style.get('grid_color', '#e8eaed'),
+            'color': style.get('grid_color', Colors.PLOT_GRID),
             'axis': style.get('grid_axis', 'both'),  # 'both', 'x', or 'y'
         }
 
@@ -193,44 +205,54 @@ class PopupStyles:
     """Styles for matplotlib annotation popups (hover tooltips, pinned labels)."""
 
     STYLES = {
-        "Clean": {
-            'fc': '#ffffff',
-            'ec': '#d0d3d8',
-            'alpha': 0.97,
-            'boxstyle': 'round,pad=0.45',
-            'text_color': Colors.PLOT_TEXT,
-            'fontsize': 9,
-        },
-        "Dark": {
-            'fc': '#1e1e24',
-            'ec': '#3a3a44',
-            'alpha': 0.95,
-            'boxstyle': 'round,pad=0.45',
-            'text_color': '#ececf0',
-            'fontsize': 9,
-        },
-        "Accent": {
-            'fc': '#f5f4ff',
-            'ec': '#818cf8',
-            'alpha': 0.97,
-            'boxstyle': 'round,pad=0.45',
-            'text_color': Colors.PLOT_TEXT,
-            'fontsize': 9,
-        },
-        "Compact": {
-            'fc': '#fafbfc',
-            'ec': '#e4e7eb',
-            'alpha': 0.92,
-            'boxstyle': 'round,pad=0.28',
-            'text_color': '#4a4a55',
-            'fontsize': 8,
-        },
+        "Clean": None,
+        "Dark": None,
+        "Accent": None,
+        "Compact": None,
     }
+
+    @classmethod
+    def _build_styles(cls):
+        return {
+            "Clean": {
+                'fc': Colors.PLOT_FACE,
+                'ec': Colors.PLOT_BORDER,
+                'alpha': 0.97,
+                'boxstyle': 'round,pad=0.45',
+                'text_color': Colors.PLOT_TEXT,
+                'fontsize': 9,
+            },
+            "Dark": {
+                'fc': Colors.PLOT_DARK_FACE,
+                'ec': Colors.PLOT_DARK_BORDER,
+                'alpha': 0.95,
+                'boxstyle': 'round,pad=0.45',
+                'text_color': Colors.PLOT_DARK_TEXT,
+                'fontsize': 9,
+            },
+            "Accent": {
+                'fc': Colors.PLOT_FACE,
+                'ec': Colors.ACCENT_PRIMARY,
+                'alpha': 0.97,
+                'boxstyle': 'round,pad=0.45',
+                'text_color': Colors.PLOT_TEXT,
+                'fontsize': 9,
+            },
+            "Compact": {
+                'fc': Colors.PLOT_COLORBAR_BG,
+                'ec': Colors.PLOT_BORDER,
+                'alpha': 0.92,
+                'boxstyle': 'round,pad=0.28',
+                'text_color': Colors.PLOT_AXIS,
+                'fontsize': 8,
+            },
+        }
 
     @classmethod
     def get_style(cls, style_name):
         """Get popup style dict by name."""
-        return cls.STYLES.get(style_name, cls.STYLES["Clean"])
+        styles = cls._build_styles()
+        return styles.get(style_name, styles["Clean"])
 
     @classmethod
     def get_bbox(cls, style_name):

@@ -56,18 +56,18 @@ class ToolbarButton(QToolButton):
             # Destructive/Red theme
             self.col_idle = Colors.ERROR
             self.col_hover = Colors.ERROR_LIGHT if Colors.is_dark() else Colors.ERROR_DARK
-            self.bg_hover = QColor(Colors.ERROR_BG)
+            self.bg_hover = Colors.qcolor(Colors.ERROR_BG)
             self.col_pressed = Colors.TEXT_INVERSE
-            self.grad_start = QColor(Colors.ERROR_DARK)
-            self.grad_end = QColor(Colors.ERROR)
+            self.grad_start = Colors.qcolor(Colors.ERROR_DARK)
+            self.grad_end = Colors.qcolor(Colors.ERROR)
         else:
             # Standard/theme-aware accent colors
             self.col_idle = Colors.ACCENT_PRIMARY
             self.col_hover = Colors.ACCENT_BRIGHT if Colors.is_dark() else Colors.ACCENT_DARK
-            self.bg_hover = QColor(Colors.ACCENT_GHOST)
+            self.bg_hover = Colors.qcolor(Colors.ACCENT_GHOST)
             self.col_pressed = Colors.TEXT_INVERSE
-            self.grad_start = QColor(Colors.ACCENT_PRESSED)
-            self.grad_end = QColor(Colors.ACCENT_PRIMARY)
+            self.grad_start = Colors.qcolor(Colors.ACCENT_PRESSED)
+            self.grad_end = Colors.qcolor(Colors.ACCENT_PRIMARY)
 
         # Set the initial icon
         self._update_icon()
