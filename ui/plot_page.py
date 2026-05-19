@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QEvent, QTimer, QAbstractAnimation, QPoint
 
 from .plot_widget import PlotWidget
+from .grid_plot_area import GridPlotArea
 from .data_table import DataTableWidget
 from .plot_sidebar import PlotSidebar
 from .plot_quick_stats_b import PlotQuickStatsPanel
@@ -127,9 +128,12 @@ class PlotPage(QWidget):
         plot_column_layout.setContentsMargins(0, 0, 0, 0)
         plot_column_layout.setSpacing(0)
 
-        # Plot widget - takes all available space
-        self.plot_widget = PlotWidget(self.main_window)
-        plot_column_layout.addWidget(self.plot_widget, 1)
+        # Grid plot area — wraps primary PlotWidget; supports 1-4 cell layouts
+        _primary_pw = PlotWidget(self.main_window)
+        self._grid_area = GridPlotArea(self.main_window, _primary_pw)
+        self._grid_area.save_active_cell_state.connect(self._on_save_cell_state)
+        self._grid_area.active_cell_changed.connect(self._on_active_cell_changed)
+        plot_column_layout.addWidget(self._grid_area, 1)
 
         # Bottom quick stats drawer (collapsed by default)
         self.quick_stats_panel = PlotQuickStatsPanel(self.main_window)
@@ -298,21 +302,72 @@ class PlotPage(QWidget):
         # Connect Sidebar -> Page
         self.plot_sidebar.visualization_changed.connect(self._on_visualization_changed)
 
+    # Names of plot-widget signals that need to follow the active cell.
+    # Routed to main_window handlers (set up by create_new_dataset_tab).
+    _MW_FORWARDED_SIGNALS = (
+        ("point_selected",            "_on_plot_point_selected"),
+        ("point_coordinate_clicked",  "_on_plot_coordinate_clicked"),
+        ("geodk_transect_requested",  "_on_plot_geodk_transect_requested"),
+    )
+
     def _connect_selection_sync(self):
-        """Wire bidirectional selection between plot and table."""
-        # Plot -> Table
-        self.plot_widget.points_selected.connect(self.data_table.highlight_rows_by_ids)
-        self.plot_widget.point_deselected.connect(self.data_table.clear_highlight)
-
-        # Table -> Plot (single point for backwards compat)
-        self.data_table.row_selected.connect(self.plot_widget.highlight_point_by_id)
-        self.data_table.row_deselected.connect(self.plot_widget.clear_point_highlight)
-
-        # Table -> Plot (member-level multi-select keeps duplicate-ID selections deterministic)
-        self.data_table.rows_selected_member_keys.connect(self.plot_widget.highlight_points_by_ids)
-
-        # Table -> Triangle Inspector
+        """Wire bidirectional selection between the active plot cell and the table/main window."""
+        self._sync_bound_pw = None
+        self._mw_bound_pw = None
+        self._rebind_table_to_active_cell()
+        # Triangle inspector binding lives on the page, not the plot widget — once.
         self.data_table.inspect_requested.connect(self._on_inspect_requested)
+
+    def _rebind_table_to_active_cell(self):
+        """Move data_table↔plot AND main_window↔plot connections to the current active cell."""
+        new_pw = self.plot_widget
+        mw = self.main_window
+
+        # ── Table ↔ plot ──────────────────────────────────────────────
+        old_pw = getattr(self, "_sync_bound_pw", None)
+        if old_pw is not new_pw:
+            if old_pw is not None:
+                try: old_pw.points_selected.disconnect(self.data_table.highlight_rows_by_ids)
+                except (TypeError, RuntimeError): pass
+                try: old_pw.point_deselected.disconnect(self.data_table.clear_highlight)
+                except (TypeError, RuntimeError): pass
+                try: self.data_table.row_selected.disconnect(old_pw.highlight_point_by_id)
+                except (TypeError, RuntimeError): pass
+                try: self.data_table.row_deselected.disconnect(old_pw.clear_point_highlight)
+                except (TypeError, RuntimeError): pass
+                try: self.data_table.rows_selected_member_keys.disconnect(old_pw.highlight_points_by_ids)
+                except (TypeError, RuntimeError): pass
+            new_pw.points_selected.connect(self.data_table.highlight_rows_by_ids)
+            new_pw.point_deselected.connect(self.data_table.clear_highlight)
+            self.data_table.row_selected.connect(new_pw.highlight_point_by_id)
+            self.data_table.row_deselected.connect(new_pw.clear_point_highlight)
+            self.data_table.rows_selected_member_keys.connect(new_pw.highlight_points_by_ids)
+            self._sync_bound_pw = new_pw
+
+        # ── main_window ↔ plot ───────────────────────────────────────
+        # main_window connects these signals only once (in create_new_dataset_tab)
+        # to whatever plot_widget returns at that moment (cell 0). We rebind here
+        # so clicking points in any cell routes through main_window's handlers.
+        old_mw_pw = getattr(self, "_mw_bound_pw", None)
+        if old_mw_pw is not new_pw:
+            for sig_name, handler_name in self._MW_FORWARDED_SIGNALS:
+                handler = getattr(mw, handler_name, None)
+                if handler is None:
+                    continue
+                if old_mw_pw is not None:
+                    sig = getattr(old_mw_pw, sig_name, None)
+                    if sig is not None:
+                        try: sig.disconnect(handler)
+                        except (TypeError, RuntimeError): pass
+                sig = getattr(new_pw, sig_name, None)
+                if sig is not None:
+                    try: sig.connect(handler)
+                    except (TypeError, RuntimeError): pass
+            # Carry over the dataset_id tag so GeoDK transects emit with the right dataset.
+            if old_mw_pw is not None and hasattr(old_mw_pw, "_dataset_id"):
+                try: new_pw._dataset_id = old_mw_pw._dataset_id
+                except Exception: pass
+            self._mw_bound_pw = new_pw
 
     def _init_plot_profiler(self):
         if not self._perf_enabled:
@@ -460,6 +515,73 @@ class PlotPage(QWidget):
         )
 
     # ──────────────────────────────────────────────────
+    #  GRID AREA — property + cell-switch handlers
+    # ──────────────────────────────────────────────────
+
+    @property
+    def plot_widget(self) -> PlotWidget:
+        """Always returns the active grid cell's PlotWidget."""
+        return self._grid_area.active_plot_widget
+
+    def _on_save_cell_state(self) -> None:
+        """Called just before the active cell changes — snapshot sidebar into current cell."""
+        try:
+            cell = self._grid_area.active_cell
+            plot_type = normalize_plot_type(self.plot_type_combo.currentText())
+            settings = self.plot_sidebar.get_settings_snapshot()
+            cell.save_state(plot_type, settings)
+        except Exception:
+            pass
+
+    def _on_active_cell_changed(self, idx: int) -> None:
+        """Load the newly-active cell's settings into the sidebar and re-render."""
+        try:
+            cell = self._grid_area.cells[idx]
+            mw = self.main_window
+            # Sync main_window.current_plot_type so any subsequent global
+            # re-render (legend/grid/compass toggle, etc.) uses the active
+            # cell's plot type — not whatever type was last set on the toolbar.
+            try:
+                mw.current_plot_type = cell.plot_type
+            except Exception:
+                pass
+            # Sync toolbar plot type combo (silent — don't trigger a re-render yet)
+            label = to_toolbar_label(cell.plot_type)
+            self.plot_type_combo.blockSignals(True)
+            self.plot_type_combo.setCurrentText(label)
+            self.plot_type_combo.blockSignals(False)
+            # Sync sidebar controls
+            if cell.settings:
+                self.plot_sidebar.update_from_settings(cell.settings)
+            self.plot_sidebar.set_plot_type(cell.plot_type)
+            # Sync per-plot-widget state
+            pw = cell.plot_widget
+            pw.set_hint_plot_type(cell.plot_type)
+            # Re-render the newly-active cell if data is available
+            data = (
+                getattr(mw, "filtered_plot_data", None)
+                or getattr(mw, "filtered_data", None)
+                or getattr(mw, "data", None)
+            )
+            if data is not None and not data.empty:
+                pw.update_plot(data, cell.plot_type)
+            # Rewire table↔plot selection sync to the new active cell
+            self._rebind_table_to_active_cell()
+            # Sync layout preset button highlight
+            self._sync_layout_btn_state()
+        except Exception:
+            pass
+
+    def _sync_layout_btn_state(self) -> None:
+        """Highlight the correct layout preset button for the current grid preset."""
+        try:
+            preset = self._grid_area.current_preset()
+            for i, btn in enumerate(self._layout_btns, 1):
+                btn.setChecked(i == preset)
+        except Exception:
+            pass
+
+    # ──────────────────────────────────────────────────
     #  TOOLBAR (redesigned: 40px, compact, pill group)
     # ──────────────────────────────────────────────────
 
@@ -482,6 +604,35 @@ class PlotPage(QWidget):
         self.sidebar_toggle_btn.setFixedSize(metrics.toolbar_button_size, metrics.toolbar_button_size)
         self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
         tl.addWidget(self.sidebar_toggle_btn)
+
+        # ── Divider ──
+        tl.addWidget(self._make_divider())
+
+        # ── Grid layout preset buttons ──
+        self._layout_btns = []
+        _preset_labels = [("1×1", 1), ("1×2", 2), ("2×1", 3), ("2×2", 4), ("1×3", 5)]
+        _current_preset = self._grid_area.current_preset() if hasattr(self, '_grid_area') else 1
+        layout_grp = QWidget()
+        layout_grp.setObjectName("layoutBtnGroup")
+        layout_grp.setStyleSheet(StyleSheet.get_toggle_pill_group_style())
+        layout_grp.setFixedHeight(metrics.toolbar_control_height)
+        _lg = QHBoxLayout(layout_grp)
+        _lg.setContentsMargins(3, 0, 3, 0)
+        _lg.setSpacing(2)
+        for _label, _n in _preset_labels:
+            _btn = QToolButton()
+            _btn.setText(_label)
+            _btn.setToolTip(f"Layout {_label}")
+            _btn.setCheckable(True)
+            _btn.setChecked(_n == _current_preset)
+            _btn.setCursor(Qt.PointingHandCursor)
+            _btn.setFixedHeight(metrics.toolbar_pill_height)
+            _btn.clicked.connect(
+                lambda _checked=False, _preset=_n: self._on_layout_preset_clicked(_preset)
+            )
+            _lg.addWidget(_btn)
+            self._layout_btns.append(_btn)
+        tl.addWidget(layout_grp)
 
         # ── Divider ──
         tl.addWidget(self._make_divider())
@@ -597,6 +748,13 @@ class PlotPage(QWidget):
         export_btn.setFixedSize(metrics.toolbar_small_button_width, metrics.toolbar_small_button_height)
         export_btn.clicked.connect(self.main_window.on_export)
         ag_layout.addWidget(export_btn)
+
+        template_btn = QToolButton()
+        template_btn.setIcon(icon(Icons.PALETTE, color=Colors.TEXT_SECONDARY))
+        template_btn.setToolTip("Plot templates")
+        template_btn.setFixedSize(metrics.toolbar_small_button_width, metrics.toolbar_small_button_height)
+        template_btn.clicked.connect(self.main_window.on_plot_template_picker)
+        ag_layout.addWidget(template_btn)
 
         self.settings_btn = QToolButton()
         self.settings_btn.setIcon(icon(Icons.SETTINGS, color=Colors.TEXT_SECONDARY))
@@ -1321,6 +1479,15 @@ class PlotPage(QWidget):
         """Handle plot type change from toolbar."""
         internal_type = normalize_plot_type(text)
 
+        # Record the new type on the active cell so it persists across cell switches
+        try:
+            self._grid_area.active_cell.save_state(
+                internal_type,
+                self._grid_area.active_cell.settings,
+            )
+        except Exception:
+            pass
+
         # Update sidebar to show appropriate options
         self.plot_sidebar.set_plot_type(internal_type)
 
@@ -1362,7 +1529,7 @@ class PlotPage(QWidget):
             data = getattr(self.main_window, "data", None)
 
         if data is not None and not data.empty:
-            current_type = getattr(self.main_window, "current_plot_type", "2D")
+            current_type = self._grid_area.active_cell.plot_type
             self.plot_widget.update_plot(data, current_type)
 
     def _on_grid_changed(self, state):
@@ -1384,6 +1551,28 @@ class PlotPage(QWidget):
     def _on_style_changed(self, style_name):
         self.main_window.current_plot_style = style_name
         self.main_window.update_plot()
+
+    def _on_layout_preset_clicked(self, preset: int) -> None:
+        """Switch the grid to a new layout preset and update button state."""
+        # Snapshot the current sidebar into the active cell before the rebuild,
+        # so we don't lose its tweaks when the layout changes.
+        self._on_save_cell_state()
+        self._grid_area.set_layout_preset(preset)
+        # Render every cell with the current dataset so newly-added cells
+        # don't show "No data loaded".
+        mw = self.main_window
+        data = getattr(mw, "filtered_plot_data", None)
+        if data is None:
+            data = getattr(mw, "filtered_data", None)
+        if data is None:
+            data = getattr(mw, "data", None)
+        if data is not None and not data.empty:
+            for cell in self._grid_area.cells:
+                try:
+                    cell.plot_widget.update_plot(data, cell.plot_type)
+                except Exception:
+                    pass
+        self._sync_layout_btn_state()
 
     # ──────────────────────────────────────────────────
     #  PUBLIC API

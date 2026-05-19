@@ -15,7 +15,7 @@ from collections import defaultdict
 from typing import Optional
 
 import numpy as np
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QSize
 from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -40,6 +40,7 @@ from matplotlib.figure import Figure
 
 from styles.colors import Colors
 from ui.icons import icon, Icons
+from ui.loading_dialog import LoadingDialog
 from ui.workers import FunctionWorker
 from qt_chrome import FramelessDialogMixin
 from core.sensitivity_analysis import (
@@ -322,6 +323,7 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         self._thread: Optional[QThread] = None
         self._cancel_flag = False
         self._run_start_time: Optional[float] = None
+        self._loading_dialog: Optional[LoadingDialog] = None
 
         self.setWindowTitle("Sensitivity Analysis")
         self.resize(1400, 820)
@@ -875,6 +877,54 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         total = steps ** 3
         self._scenario_count_label.setText(f"{total} ({steps}\u00b3)")
 
+    def _open_loading_dialog(self, total_runs: int):
+        self._close_loading_dialog(delete_immediately=True)
+        dlg = LoadingDialog(
+            "Running Sensitivity Analysis",
+            "Evaluating scenario sweeps against the active hydraulic-gradient dataset",
+            self,
+            cancellable=True,
+        )
+        dlg.update_progress(
+            0,
+            max(1, int(total_runs)),
+            "Preparing scenario sweep",
+            "Building baseline and parameter scenarios.",
+            count_label=f"0/{max(1, int(total_runs))}",
+            activity_label="Waiting for first scenario.",
+        )
+        dlg.set_activity("The analysis runs in the background; use Cancel to stop after the current scenario.")
+        dlg.cancellation_requested.connect(self._on_cancel)
+        dlg.open()
+        self._loading_dialog = dlg
+
+    def _close_loading_dialog(
+        self,
+        *,
+        headline: str = "",
+        detail: str = "",
+        ok: bool = True,
+        delete_immediately: bool = False,
+    ):
+        dlg = self._loading_dialog
+        self._loading_dialog = None
+        if dlg is None:
+            return
+        try:
+            if delete_immediately:
+                dlg.close()
+                dlg.deleteLater()
+                return
+            if headline:
+                dlg.mark_finished(headline, detail, ok=ok)
+                QTimer.singleShot(550, dlg.accept)
+                QTimer.singleShot(700, dlg.deleteLater)
+            else:
+                dlg.accept()
+                dlg.deleteLater()
+        except Exception:
+            pass
+
     # ==================================================================
     #  Run / Cancel
     # ==================================================================
@@ -901,6 +951,8 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         steps = self._steps_spin.value()
         spread = self._spread_spin.value() / 100.0
         scenarios = _build_grid_scenarios(baseline, steps, spread)
+        total_runs = len(scenarios) + 1  # include baseline run
+        self._open_loading_dialog(total_runs)
 
         config_dict = {
             "mode": "parameter_sweep",
@@ -930,6 +982,8 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         self._cancel_flag = True
         self._status_label.setText("Cancelling...")
         self._cancel_btn.setEnabled(False)
+        if self._loading_dialog is not None:
+            self._loading_dialog.mark_cancel_pending()
 
     def _thread_progress(self, current: int, total: int, label: str):
         self._progress_sig.emit(current, total, label)
@@ -943,6 +997,19 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
                 elapsed = time.perf_counter() - self._run_start_time
                 eta = (elapsed / current) * (total - current)
                 self._eta_label.setText(f"ETA: {eta:.1f}s remaining")
+                activity_label = f"ETA: {eta:.1f}s remaining"
+            else:
+                activity_label = "Estimating remaining time."
+
+            if self._loading_dialog is not None:
+                self._loading_dialog.update_progress(
+                    current,
+                    total,
+                    "Running scenario sweep",
+                    str(label or "Processing sensitivity scenario."),
+                    count_label=f"{current}/{total}",
+                    activity_label=activity_label,
+                )
 
     def _on_results_ready(self, result):
         self._result = result
@@ -950,10 +1017,17 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         self._cancel_btn.setEnabled(False)
         self._progress_bar.setValue(100)
         elapsed = time.perf_counter() - self._run_start_time if self._run_start_time else 0
-        self._status_label.setText(f"Done - {len(result.runs)} runs in {elapsed:.1f}s")
+        was_cancelled = bool(self._cancel_flag)
+        status = "Cancelled" if was_cancelled else "Done"
+        self._status_label.setText(f"{status} - {len(result.runs)} runs in {elapsed:.1f}s")
         self._eta_label.setText("")
         self._export_csv_btn.setEnabled(True)
         self._export_json_btn.setEnabled(True)
+        self._close_loading_dialog(
+            headline="Sensitivity analysis cancelled" if was_cancelled else "Sensitivity analysis complete",
+            detail=f"{len(result.runs)} scenario runs processed in {elapsed:.1f}s.",
+            ok=not was_cancelled,
+        )
         self._populate_results(result)
 
     def _on_error(self, message: str, tb: str):
@@ -962,6 +1036,11 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
         self._progress_bar.setValue(0)
         self._status_label.setText("Error")
         self._eta_label.setText("")
+        self._close_loading_dialog(
+            headline="Sensitivity analysis failed",
+            detail=str(message or "The analysis did not complete."),
+            ok=False,
+        )
         QMessageBox.critical(self, "Sensitivity Analysis Error", f"{message}\n\n{tb}")
 
     def _cleanup_thread(self):
@@ -1334,6 +1413,7 @@ class SensitivityDialog(FramelessDialogMixin, QDialog):
 
     def closeEvent(self, event):
         self._cancel_flag = True
+        self._close_loading_dialog(delete_immediately=True)
         if self._thread is not None and self._thread.isRunning():
             self._thread.quit()
             self._thread.wait(2000)

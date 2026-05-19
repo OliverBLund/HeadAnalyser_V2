@@ -178,6 +178,18 @@ class SensitivityAnalysisEngine:
             selected_point_ids=selected_point_ids,
         )
 
+        plans = build_run_plans(
+            cfg=cfg,
+            data=scoped_data,
+            col_mapping=col_mapping,
+            base_settings={k: float(base_settings[k]) for k in self.SETTINGS_KEYS},
+        )
+
+        total_runs = len(plans)
+        total_work = total_runs + 1  # baseline + scenario runs
+        if progress_callback:
+            progress_callback(0, total_work, "baseline")
+
         baseline_result, _, _ = self._run_once(
             mode=cfg.mode,
             run_id="BASE",
@@ -188,18 +200,12 @@ class SensitivityAnalysisEngine:
             seed=cfg.seed,
         )
         baseline = baseline_result
-
-        plans = build_run_plans(
-            cfg=cfg,
-            data=scoped_data,
-            col_mapping=col_mapping,
-            base_settings={k: float(base_settings[k]) for k in self.SETTINGS_KEYS},
-        )
+        if progress_callback:
+            progress_callback(1, total_work, "baseline complete")
 
         runs = []
         # Triangle flip tracker: {frozenset: [kept_count, rejected_count]}
         triangle_tracker: dict = {}
-        total_runs = len(plans)
 
         for i, plan in enumerate(plans, start=1):
             if cancel_check and bool(cancel_check()):
@@ -236,7 +242,7 @@ class SensitivityAnalysisEngine:
                     entry[1] += 1
 
             if progress_callback:
-                progress_callback(i, total_runs, summary.scenario_label)
+                progress_callback(i + 1, total_work, summary.scenario_label)
 
         # --- Compute rejection breakdown ---
         rejection_breakdown = {

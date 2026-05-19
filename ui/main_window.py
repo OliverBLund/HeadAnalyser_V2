@@ -59,8 +59,10 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
 
     _DATASET_EXTRA_OPTION_ATTRS = (
         "show_legend",
+        "current_plot_template",
         "current_plot_style",
         "current_popup_style",
+        "show_points",
         "colormap_2d",
         "point_size",
         "contour_levels",
@@ -169,6 +171,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.selected_triangle_indices = set()
         self.selection_meta = None
         self.show_triangle_selection_overlay = False
+        self.show_points = True
         self.show_contours = False
         self.show_colorbar = True
         self.show_id_labels = True
@@ -187,6 +190,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.arrow_color = Colors.ACCENT_PRIMARY
         self.show_grid = False
         self.show_legend = False
+        self.current_plot_template = "hydraulic_field"
         self.current_plot_style = "Default"
         self.current_popup_style = "Clean"
 
@@ -3147,6 +3151,31 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         finally:
             dialog.deleteLater()
 
+    def on_plot_template_picker(self):
+        from .dialogs.plot_template_picker import PlotTemplatePickerDialog
+
+        dialog = PlotTemplatePickerDialog(
+            plot_type=self.current_plot_type,
+            active_key=getattr(self, "current_plot_template", "hydraulic_field"),
+            parent=self,
+        )
+        try:
+            if dialog.exec_():
+                self.apply_plot_template(dialog.selected_template_key())
+        finally:
+            dialog.deleteLater()
+
+    def apply_plot_template(self, template_key: str):
+        from styles.plot_templates import apply_template_to_target
+
+        template = apply_template_to_target(self, template_key, self.current_plot_type)
+        dataset = self.get_active_dataset()
+        if dataset is not None:
+            self.sync_to_dataset(dataset)
+        self._sync_active_sidebar_from_state()
+        self.update_plot()
+        return template
+
     def on_calculation_settings(self):
         from .dialogs.calculation_settings import CalculationSettingsDialog
         dialog = CalculationSettingsDialog(self, parent=self)
@@ -3271,6 +3300,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self._perf_log(f"[perf] filters apply (pre-gradient) elapsed={(time.perf_counter() - t0) * 1000.0:.1f}ms")
 
     def on_visualization_changed(self, settings):
+        self.show_points = settings.get('points', getattr(self, 'show_points', True))
+        self.show_vector_points = self.show_points
         self.show_contours = settings.get('contours', self.show_contours)
         self.show_colorbar = settings.get('colorbar', self.show_colorbar)
         self.show_id_labels = settings.get('id_labels', self.show_id_labels)
@@ -3330,6 +3361,14 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         new_colormap_3d = options.get('colormap_3d', self.colormap_3d)
         non_label_changed = non_label_changed or (new_colormap_3d != self.colormap_3d)
         self.colormap_3d = new_colormap_3d
+
+        new_surface_alpha = options.get('surface_opacity', options.get('surface_alpha', self.surface_alpha))
+        non_label_changed = non_label_changed or (new_surface_alpha != self.surface_alpha)
+        self.surface_alpha = new_surface_alpha
+
+        new_wireframe = options.get('wireframe_overlay', options.get('show_wireframe', self.show_wireframe))
+        non_label_changed = non_label_changed or (new_wireframe != self.show_wireframe)
+        self.show_wireframe = new_wireframe
 
         # Vector plot options
         new_vector_scale = options.get('vector_scale', self.vector_scale)
@@ -3596,6 +3635,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             self.selected_triangle_indices = set()
             self.selection_meta = None
             self.show_triangle_selection_overlay = False
+            self.show_points = True
+            self.current_plot_template = "hydraulic_field"
             self.total_triangles = None
             self.rejected_due_to_uncertainty = None
             self.rejected_due_to_triangle_quality = None
@@ -3726,6 +3767,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         return {
             'show_contours': bool(self.show_contours),
             'show_arrow': bool(self.show_arrow),
+            'show_arrow_label': bool(getattr(self, "show_arrow_label", True)),
+            'show_points': bool(getattr(self, "show_points", True)),
             'show_colorbar': bool(self.show_colorbar),
             'show_id_labels': bool(self.show_id_labels),
             'show_head_labels': bool(self.show_head_labels),
@@ -3737,6 +3780,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'elevation_3d': self.elevation_3d,
             'azimuth_3d': self.azimuth_3d,
             'colormap_3d': self.colormap_3d,
+            'surface_opacity': self.surface_alpha,
+            'wireframe_overlay': self.show_wireframe,
             'vector_scale': self.vector_scale,
             'vector_alpha': self.vector_alpha,
             'colormap_vectors': self.colormap_vectors,
@@ -3749,6 +3794,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'histogram_show_median': self.histogram_show_median,
             'histogram_show_ci': self.histogram_show_ci,
             'histogram_ci_level': self.histogram_ci_level,
+            'histogram_show_kde': self.histogram_show_kde,
             'rose_mode': self.rose_mode,
             'rose_bins': self.rose_bins,
             'rose_show_mean': self.rose_show_mean,
@@ -3756,6 +3802,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'rose_show_ci': self.rose_show_ci,
             'rose_ci_level': self.rose_ci_level,
             'rose_color': self.rose_color,
+            'rose_show_median': self.rose_show_median,
+            'rose_show_mean_resultant': self.rose_show_mean_resultant,
         }
 
     def _sync_active_sidebar_from_state(self):
@@ -3843,6 +3891,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         initial_settings = {
             'show_contours': bool(dataset.show_contours),
             'show_arrow': bool(dataset.show_arrow),
+            'show_arrow_label': bool(getattr(dataset, "show_arrow_label", True)),
+            'show_points': bool(getattr(dataset, "show_points", True)),
             'show_colorbar': bool(dataset.show_colorbar),
             'show_id_labels': bool(dataset.show_id_labels),
             'show_head_labels': bool(dataset.show_head_labels),
@@ -3854,9 +3904,13 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'elevation_3d': dataset.elevation_3d,
             'azimuth_3d': dataset.azimuth_3d,
             'colormap_3d': dataset.colormap_3d,
+            'surface_opacity': getattr(dataset, "surface_alpha", 0.8),
+            'wireframe_overlay': getattr(dataset, "show_wireframe", False),
             'vector_scale': dataset.vector_scale,
             'vector_alpha': dataset.vector_alpha,
             'colormap_vectors': dataset.colormap_vectors,
+            'show_mean_vector': getattr(dataset, "show_mean_vector", True),
+            'normalize_vectors': getattr(dataset, "normalize_vectors", False),
             'histogram_bins': dataset.histogram_bins,
             'histogram_bar_color': dataset.histogram_bar_color,
             'histogram_edge_color': dataset.histogram_edge_color,
@@ -3864,6 +3918,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'histogram_show_median': dataset.histogram_show_median,
             'histogram_show_ci': dataset.histogram_show_ci,
             'histogram_ci_level': dataset.histogram_ci_level,
+            'histogram_show_kde': getattr(dataset, "histogram_show_kde", False),
             'rose_mode': dataset.rose_mode,
             'rose_bins': dataset.rose_bins,
             'rose_show_mean': dataset.rose_show_mean,
@@ -3871,6 +3926,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             'rose_show_ci': dataset.rose_show_ci,
             'rose_ci_level': dataset.rose_ci_level,
             'rose_color': dataset.rose_color,
+            'rose_show_median': getattr(dataset, "rose_show_median", False),
+            'rose_show_mean_resultant': getattr(dataset, "rose_show_mean_resultant", True),
         }
         plot_page.plot_sidebar.update_from_settings(initial_settings)
 

@@ -13,6 +13,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
 from styles.colors import Colors
+from styles.plot_templates import DEFAULT_TEMPLATE_KEY, get_template
 from styles.stylesheet import StyleSheet
 from ui.common_widgets import ToggleSwitch
 from ui.icons import Icons, icon
@@ -253,6 +254,8 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
         super().__init__(parent or main_window)
         self.main_window = main_window
         self.plot_type = plot_type
+        self._pending_template_key = None
+        self._pending_template_settings = {}
 
         self.setWindowTitle("Plot Settings")
         self.setMinimumSize(480, 600)
@@ -381,6 +384,72 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(0, 6, 0, 6)
         body_layout.setSpacing(0)
+
+        # Section 0: Plot Templates
+        sec_templates = _SettingsSection(
+            "Plot Templates", Icons.PALETTE, _SettingsSection.BLUE)
+
+        template_box = QFrame()
+        template_box.setStyleSheet(f"""
+            QFrame {{
+                background: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BORDER_SUBTLE};
+                border-radius: 10px;
+            }}
+        """)
+        template_layout = QHBoxLayout(template_box)
+        template_layout.setContentsMargins(14, 12, 14, 12)
+        template_layout.setSpacing(12)
+
+        template_text = QVBoxLayout()
+        template_text.setSpacing(3)
+        self.template_name_label = QLabel()
+        self.template_name_label.setStyleSheet(f"""
+            color: {Colors.TEXT_PRIMARY};
+            font-size: 12px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+        """)
+        template_text.addWidget(self.template_name_label)
+
+        self.template_desc_label = QLabel()
+        self.template_desc_label.setWordWrap(True)
+        self.template_desc_label.setStyleSheet(f"""
+            color: {Colors.TEXT_TERTIARY};
+            font-size: 10px;
+            line-height: 1.35;
+            background: transparent;
+            border: none;
+        """)
+        template_text.addWidget(self.template_desc_label)
+        template_layout.addLayout(template_text, 1)
+
+        choose_template_btn = QPushButton("Choose")
+        choose_template_btn.setCursor(Qt.PointingHandCursor)
+        choose_template_btn.setStyleSheet(f"""
+            QPushButton {{
+                color: {Colors.TEXT_PRIMARY};
+                background: {Colors.ACCENT_GHOST};
+                border: 1px solid {Colors.BORDER_ACCENT};
+                border-radius: 8px;
+                padding: 7px 14px;
+                font-size: 11px;
+                font-weight: 700;
+            }}
+            QPushButton:hover {{
+                background: {Colors.BG_HOVER};
+                border-color: {Colors.ACCENT_PRIMARY};
+            }}
+        """)
+        choose_template_btn.clicked.connect(self._choose_template)
+        template_layout.addWidget(choose_template_btn)
+
+        sec_templates.addFullWidget(template_box)
+        body_layout.addWidget(sec_templates)
+        self._update_template_summary(
+            get_template(getattr(self.main_window, "current_plot_template", DEFAULT_TEMPLATE_KEY))
+        )
 
         # ────────────────────────────
         # Section 1: Plot Titles
@@ -934,6 +1003,106 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
 
     # ── Helpers ──
 
+    def _update_template_summary(self, template):
+        if hasattr(self, "template_name_label"):
+            self.template_name_label.setText(template.name)
+        if hasattr(self, "template_desc_label"):
+            applies = ", ".join(template.plot_types)
+            self.template_desc_label.setText(f"{template.description} Applies to: {applies}.")
+
+    def _choose_template(self):
+        from .plot_template_picker import PlotTemplatePickerDialog
+
+        active_key = self._pending_template_key or getattr(
+            self.main_window, "current_plot_template", DEFAULT_TEMPLATE_KEY
+        )
+        dialog = PlotTemplatePickerDialog(
+            plot_type=self.plot_type,
+            active_key=active_key,
+            parent=self,
+        )
+        try:
+            if dialog.exec_():
+                template = get_template(dialog.selected_template_key())
+                self._pending_template_key = template.key
+                self._pending_template_settings = template.settings_for(self.plot_type)
+                self._apply_template_to_controls(self._pending_template_settings)
+                self._update_template_summary(template)
+        finally:
+            dialog.deleteLater()
+
+    def _set_combo_value(self, combo: QComboBox, value):
+        index = combo.findText(str(value))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _apply_template_to_controls(self, settings: dict):
+        if not settings:
+            return
+
+        if "x_axis_label" in settings:
+            self.x_label_edit.setText(str(settings["x_axis_label"]))
+        if "y_axis_label" in settings:
+            self.y_label_edit.setText(str(settings["y_axis_label"]))
+        if "axis_label_font_size" in settings:
+            self.axis_label_font_spin.setValue(int(settings["axis_label_font_size"]))
+        if "axis_tick_font_size" in settings:
+            self.axis_tick_font_spin.setValue(int(settings["axis_tick_font_size"]))
+        if "show_id_labels" in settings:
+            self.toggle_id_labels.setChecked(bool(settings["show_id_labels"]))
+        if "show_head_labels" in settings:
+            self.toggle_head_labels.setChecked(bool(settings["show_head_labels"]))
+        if "id_font_size" in settings:
+            self.id_font_spin.setValue(int(settings["id_font_size"]))
+        if "head_font_size" in settings:
+            self.head_font_spin.setValue(int(settings["head_font_size"]))
+        if "label_offset" in settings:
+            self.label_offset_spin.setValue(int(settings["label_offset"]))
+
+        if "id_label_color" in settings:
+            self._set_swatch_color(self.id_color_btn, str(settings["id_label_color"]))
+        if "head_label_color" in settings:
+            self._set_swatch_color(self.head_color_btn, str(settings["head_label_color"]))
+        if "arrow_color" in settings:
+            self._set_swatch_color(self.arrow_color_btn, str(settings["arrow_color"]))
+        if "arrow_outline_color" in settings:
+            self._set_swatch_color(self.arrow_outline_color_btn, str(settings["arrow_outline_color"]))
+
+        if hasattr(self, "interp_combo") and "interpolation_method" in settings:
+            self._set_combo_value(self.interp_combo, settings["interpolation_method"])
+        if hasattr(self, "contour_linewidth_spin") and "contour_linewidth" in settings:
+            self.contour_linewidth_spin.setValue(float(settings["contour_linewidth"]))
+        if hasattr(self, "contour_label_font_spin") and "contour_label_font_size" in settings:
+            self.contour_label_font_spin.setValue(int(settings["contour_label_font_size"]))
+        if hasattr(self, "contour_extent_spin") and "contour_extent_pct" in settings:
+            self.contour_extent_spin.setValue(int(settings["contour_extent_pct"]))
+        if hasattr(self, "contour_extrapolation_combo") and "contour_extrapolation" in settings:
+            label = {"none": "None", "nearest": "Nearest", "idw": "IDW"}.get(
+                str(settings["contour_extrapolation"]).lower(),
+                str(settings["contour_extrapolation"]).title(),
+            )
+            self._set_combo_value(self.contour_extrapolation_combo, label)
+        if hasattr(self, "show_point_glow_toggle") and "show_point_glow" in settings:
+            self.show_point_glow_toggle.setChecked(bool(settings["show_point_glow"]))
+        if hasattr(self, "point_glow_size_spin") and "point_glow_size_multiplier" in settings:
+            self.point_glow_size_spin.setValue(float(settings["point_glow_size_multiplier"]))
+        if hasattr(self, "point_glow_alpha_spin") and "point_glow_alpha" in settings:
+            self.point_glow_alpha_spin.setValue(int(round(float(settings["point_glow_alpha"]) * 100.0)))
+        if hasattr(self, "arrow_outline_width_spin") and "arrow_outline_width" in settings:
+            self.arrow_outline_width_spin.setValue(float(settings["arrow_outline_width"]))
+        if hasattr(self, "sync_xy_ticks_toggle_2d") and "sync_xy_major_ticks" in settings:
+            self.sync_xy_ticks_toggle_2d.setChecked(bool(settings["sync_xy_major_ticks"]))
+        if hasattr(self, "sync_xy_ticks_toggle_vec") and "sync_xy_major_ticks" in settings:
+            self.sync_xy_ticks_toggle_vec.setChecked(bool(settings["sync_xy_major_ticks"]))
+        if hasattr(self, "scale_spin") and "vector_scale" in settings:
+            self.scale_spin.setValue(float(settings["vector_scale"]))
+        if hasattr(self, "alpha_slider") and "vector_alpha" in settings:
+            self.alpha_slider.setValue(int(round(float(settings["vector_alpha"]) * 100.0)))
+        if hasattr(self, "marker_size_spin") and "marker_size" in settings:
+            self.marker_size_spin.setValue(int(settings["marker_size"]))
+
+        self._update_glow_controls()
+
     def _set_swatch_color(self, button: QPushButton, hex_color: str):
         button.setProperty("color", hex_color)
         button.setStyleSheet(f"""
@@ -1074,6 +1243,12 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
         mw = self.main_window
         dataset = mw.get_active_dataset() if hasattr(mw, "get_active_dataset") else None
 
+        if self._pending_template_settings:
+            for attr, value in self._pending_template_settings.items():
+                setattr(mw, attr, value)
+            if self._pending_template_key:
+                mw.current_plot_template = self._pending_template_key
+
         # Titles
         if hasattr(self, "plot_title_edit"):
             mw.plot_title = self.plot_title_edit.text()
@@ -1174,6 +1349,8 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
 
         if dataset is not None and hasattr(mw, "sync_to_dataset"):
             mw.sync_to_dataset(dataset)
+        if hasattr(mw, "_sync_active_sidebar_from_state"):
+            mw._sync_active_sidebar_from_state()
 
         mw.update_plot()
         self.accept()

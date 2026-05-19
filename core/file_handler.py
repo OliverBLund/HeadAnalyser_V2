@@ -105,18 +105,6 @@ class FileHandler:
             )
             return None
             
-        # Large data warning
-        if len(data) > 30:
-            reply = QMessageBox.question(
-                self.app_ref,
-                "Large Dataset",
-                f"This file contains {len(data)} rows which may take longer to process. Continue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.No:
-                return None
-                
         selected_mapping = {}
         saved_mapping = {}
         if use_recent_mapping and hasattr(self.app_ref, "get_recent_mapping_for_file"):

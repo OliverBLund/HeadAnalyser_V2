@@ -53,6 +53,8 @@ class Dataset:
 
         # Plot settings
         self.current_plot_type = "2D"
+        self.current_plot_template = "hydraulic_field"
+        self.show_points = True
         self.show_contours = False
         self.show_colorbar = True
         self.show_id_labels = True
@@ -67,9 +69,11 @@ class Dataset:
         self.sync_xy_major_ticks = False
         self.show_compass = True
         self.show_arrow = True
+        self.show_arrow_label = True
         self.show_grid = False
         self.show_legend = False
         self.current_plot_style = "Default"
+        self.current_popup_style = "Clean"
 
         # Plot-specific options
         self.colormap_2d = "viridis"
@@ -88,6 +92,8 @@ class Dataset:
         self.vector_scale = 5.0
         self.vector_alpha = 0.7
         self.colormap_vectors = "viridis"
+        self.show_mean_vector = True
+        self.normalize_vectors = False
         self.histogram_bins = 30
         self.histogram_bar_color = "grey"
         self.histogram_edge_color = "black"
@@ -96,6 +102,7 @@ class Dataset:
         self.histogram_show_ci = False
         self.histogram_ci_level = 95
         self.histogram_ci_resamples = 200
+        self.histogram_show_kde = False
         self.rose_bins = 16
         self.rose_show_mean = True
         self.rose_show_weighted_mean = True
@@ -104,6 +111,8 @@ class Dataset:
         self.rose_ci_resamples = 200
         self.rose_mode = "count"
         self.rose_color = "blue"
+        self.rose_show_mean_resultant = True
+        self.rose_show_median = False
 
         # Advanced customization options
         self.marker_size = 80

@@ -1027,6 +1027,55 @@ class PlotSidebar(QFrame):
         self.rose_show_median_checkbox.blockSignals(False)
         self.mean_resultant_checkbox.blockSignals(False)
 
+    def get_settings_snapshot(self) -> dict:
+        """Return a settings dict that can be fed back into update_from_settings()."""
+        return {
+            # Viz toggles
+            'show_contours':      self.toggle_contours.isChecked(),
+            'show_arrow':         self.toggle_arrows.isChecked(),
+            'show_arrow_label':   self.toggle_arrow_label.isChecked(),
+            'show_points':        self.toggle_points.isChecked(),
+            'show_colorbar':      self.toggle_colorbar.isChecked(),
+            'show_id_labels':     self.toggle_labels.isChecked(),
+            'fill_contours':      self.toggle_fill_contours.isChecked(),
+            # 2D
+            'colormap_2d':        self.colormap_2d_combo.currentText(),
+            'point_size':         self.point_size_slider.value(),
+            'label_mode_2d':      self.label_mode_2d_combo.currentText().lower(),
+            'contour_levels':     self.contour_levels_spinbox.value(),
+            # 3D
+            'elevation_3d':       self.elev_slider.value(),
+            'azimuth_3d':         self.azim_slider.value(),
+            'colormap_3d':        self.colormap_3d_combo.currentText(),
+            'surface_opacity':    self.surface_opacity_slider.value() / 100.0,
+            'wireframe_overlay':  self.wireframe_checkbox.isChecked(),
+            # Vectors
+            'vector_scale':       self.vector_scale_slider.value(),
+            'vector_alpha':       self.vector_alpha_slider.value() / 100.0,
+            'colormap_vectors':   self.colormap_vectors_combo.currentText(),
+            'show_mean_vector':   self.mean_vector_checkbox.isChecked(),
+            'normalize_vectors':  self.normalize_vectors_checkbox.isChecked(),
+            # Histogram
+            'histogram_bins':         self.bins_spinbox.value(),
+            'histogram_bar_color':    self.bar_color_combo.currentText(),
+            'histogram_edge_color':   self.edge_color_combo.currentText(),
+            'histogram_show_mean':    self.show_mean_checkbox.isChecked(),
+            'histogram_show_median':  self.show_median_checkbox.isChecked(),
+            'histogram_show_ci':      self.show_ci_checkbox.isChecked(),
+            'histogram_ci_level':     self.ci_level_spinbox.value(),
+            'histogram_show_kde':     self.kde_curve_checkbox.isChecked(),
+            # Rose diagram
+            'rose_mode':              'gradient_weighted' if self.rose_mode_combo.currentText() == 'Gradient Sum' else 'count',
+            'rose_bins':              self.rose_bins_spinbox.value(),
+            'rose_show_mean':         self.show_mean_direction_checkbox.isChecked(),
+            'rose_show_weighted_mean':self.show_weighted_mean_checkbox.isChecked(),
+            'rose_show_ci':           self.rose_show_ci_checkbox.isChecked(),
+            'rose_ci_level':          self.rose_ci_level_spinbox.value(),
+            'rose_color':             self.rose_color_combo.currentText(),
+            'rose_show_median':       self.rose_show_median_checkbox.isChecked(),
+            'rose_show_mean_resultant':self.mean_resultant_checkbox.isChecked(),
+        }
+
     def apply_theme(self):
         metrics = build_screen_metrics(self)
         settings = {}

@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Grid Plot — Concept</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-app:      #0f0f12;
+  --bg-dark:     #141418;
+  --bg-panel:    #1a1a1f;
+  --bg-surface:  #212127;
+  --bg-elevated: #28282f;
+  --bg-hover:    #2f2f37;
+  --bg-well:     #18181c;
+  --bd-subtle:   rgba(255,255,255,0.04);
+  --bd-default:  rgba(255,255,255,0.07);
+  --bd-medium:   rgba(255,255,255,0.10);
+  --bd-strong:   rgba(255,255,255,0.16);
+  --accent:      #818cf8;
+  --accent-br:   #a5b4fc;
+  --accent-pr:   #6366f1;
+  --accent-gh:   rgba(129,140,248,0.08);
+  --accent-bd:   rgba(129,140,248,0.25);
+  --accent-glow: rgba(129,140,248,0.18);
+  --warning:     #fbbf24;
+  --success:     #4ade80;
+  --tx-primary:  #ececf0;
+  --tx-sec:      #a8a8b3;
+  --tx-ter:      #6e6e7a;
+  --tx-muted:    #4a4a55;
+}
+
+body {
+  background: var(--bg-app);
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--tx-primary);
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+  height: 40px;
+  background: linear-gradient(to bottom, #1a1a1f, #141418);
+  border-bottom: 1px solid var(--bd-default);
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  gap: 0;
+  flex-shrink: 0;
+}
+.header-logo {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.3px;
+  margin-right: 10px;
+}
+.header-sep { width: 1px; height: 18px; background: var(--bd-medium); margin: 0 8px; flex-shrink: 0; }
+.header-dataset {
+  height: 24px; padding: 0 10px;
+  background: var(--bg-well); border: 1px solid var(--bd-medium);
+  border-radius: 3px; font-size: 10px; color: var(--tx-sec);
+  display: flex; align-items: center; gap: 5px; cursor: pointer; margin-right: 4px;
+}
+.header-dataset.active { background: var(--accent-gh); border-color: var(--accent-bd); color: var(--accent); }
+.tab-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+.header-spacer { flex: 1; }
+
+/* Header button groups */
+.hbg {
+  display: flex; align-items: center;
+  background: var(--bg-well); border: 1px solid var(--bd-subtle);
+  border-radius: 4px; padding: 0 1px; gap: 1px; margin-left: 4px;
+}
+.hbtn {
+  width: 24px; height: 22px;
+  background: transparent; border: none;
+  border-radius: 3px; color: var(--accent); font-size: 11px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.hbtn:hover { background: var(--accent-gh); }
+.hbtn.red { color: #f87171; }
+.hbtn.red:hover { background: rgba(248,113,113,0.08); }
+.hbtn-icon { font-size: 9px; }
+
+/* ─── PLOT TOOLBAR ─── */
+.plot-toolbar {
+  height: 38px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--bd-default);
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 10px;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.tb-sep { width: 1px; height: 18px; background: var(--bd-medium); flex-shrink: 0; margin: 0 1px; }
+.tb-label { font-size: 8px; font-weight: 700; color: var(--tx-muted); letter-spacing: 0.8px; text-transform: uppercase; flex-shrink: 0; }
+
+/* Sidebar toggle */
+.tb-icon-btn {
+  width: 26px; height: 26px;
+  background: transparent; border: none;
+  border-radius: 3px; color: var(--tx-sec); font-size: 12px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.tb-icon-btn:hover { background: var(--bg-hover); color: var(--tx-primary); }
+
+/* Layout preset buttons */
+.layout-group { display: flex; gap: 2px; }
+.layout-btn {
+  width: 26px; height: 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bd-medium);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--tx-ter);
+  transition: all 0.1s;
+}
+.layout-btn:hover { border-color: var(--bd-strong); color: var(--tx-sec); }
+.layout-btn.active { background: var(--accent-gh); border-color: var(--accent-bd); color: var(--accent); }
+.layout-btn svg { pointer-events: none; }
+
+/* Plot type / style dropdowns */
+.tb-select {
+  height: 24px; padding: 0 6px;
+  background: var(--bg-surface); border: 1px solid var(--bd-medium);
+  border-radius: 3px; color: var(--tx-primary); font-size: 10px;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%236e6e7a'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 5px center;
+  padding-right: 18px;
+  cursor: pointer;
+}
+.tb-select.wide { min-width: 100px; }
+.tb-select.narrow { min-width: 78px; }
+
+/* Pill toggle group */
+.pill-group {
+  display: flex; align-items: center;
+  background: var(--bg-well); border: 1px solid var(--bd-subtle);
+  border-radius: 4px; padding: 0 2px; gap: 1px;
+  height: 26px;
+}
+.pill {
+  height: 20px; padding: 0 7px;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 3px; color: var(--tx-ter); font-size: 9px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; gap: 3px;
+  white-space: nowrap;
+}
+.pill:hover { color: var(--tx-sec); background: var(--bg-hover); }
+.pill.on { background: var(--accent-gh); border-color: var(--accent-bd); color: var(--accent); }
+.pill-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+
+/* Right-side toolbar buttons (Table / Stats / Add) */
+.tb-spacer { flex: 1; }
+.tb-text-btn {
+  height: 24px; padding: 0 8px;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 3px; color: var(--tx-sec); font-size: 9px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+.tb-text-btn:hover { border-color: var(--bd-medium); color: var(--tx-primary); }
+.tb-text-btn.on { background: var(--accent-gh); border-color: var(--accent-bd); color: var(--accent); }
+
+/* Action mini-group */
+.tb-action-grp {
+  display: flex; align-items: center;
+  background: var(--bg-well); border: 1px solid var(--bd-subtle);
+  border-radius: 3px; padding: 0 1px; gap: 1px; height: 26px;
+}
+.tb-mini-btn {
+  width: 22px; height: 20px;
+  background: transparent; border: none;
+  border-radius: 2px; color: var(--tx-ter); font-size: 10px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.tb-mini-btn:hover { background: var(--bg-hover); color: var(--tx-sec); }
+
+/* ─── CONTENT AREA ─── */
+.content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ─── LEFT SIDEBAR ─── */
+.left-sidebar {
+  width: 228px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--bd-default);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Active cell indicator — compact */
+.active-cell-header {
+  height: 32px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--bd-default);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.cell-indicator {
+  width: 7px; height: 7px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.active-cell-label { flex: 1; display: flex; flex-direction: column; gap: 0; }
+.active-cell-id { font-size: 8px; font-weight: 700; color: var(--tx-ter); letter-spacing: 0.5px; text-transform: uppercase; }
+.active-cell-plot { font-size: 10px; font-weight: 600; color: var(--tx-primary); line-height: 1.2; }
+
+/* Plot type selector row — compact */
+.plot-type-row {
+  padding: 5px 8px 4px;
+  border-bottom: 1px solid var(--bd-subtle);
+  flex-shrink: 0;
+}
+.plot-type-select {
+  width: 100%;
+  height: 23px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bd-medium);
+  border-radius: 3px;
+  color: var(--tx-primary);
+  font-size: 10px;
+  padding: 0 7px;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%236e6e7a'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  cursor: pointer;
+}
+
+/* Sidebar scroll body */
+.sidebar-scroll {
+  flex: 1; overflow-y: auto;
+  padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+
+/* ── Section cards — compact ── */
+.sc {
+  background: var(--bg-surface);
+  border: 1px solid var(--bd-default);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sh {
+  height: 22px; display: flex; align-items: center; gap: 7px;
+  padding: 0 8px; background: var(--bg-elevated);
+  border-bottom: 1px solid var(--bd-default);
+  cursor: pointer;
+}
+.sh:hover { background: var(--bg-hover); }
+.ab { width: 2px; height: 10px; border-radius: 1px; flex-shrink: 0; }
+.ab-acc  { background: var(--accent); }
+.ab-warn { background: var(--warning); }
+.ab-suc  { background: var(--success); }
+.st { font-size: 9px; font-weight: 700; letter-spacing: 0.7px; color: var(--tx-sec); flex: 1; text-transform: uppercase; }
+/* chevron */
+.chev { font-size: 8px; color: var(--tx-muted); }
+.sb { padding: 7px 8px; display: flex; flex-direction: column; gap: 5px; }
+
+/* Controls — compact */
+.ctrl-row { display: flex; align-items: center; gap: 6px; min-height: 18px; }
+.ctrl-label { font-size: 9px; font-weight: 500; color: var(--tx-sec); flex: 1; }
+.ctrl-select {
+  height: 19px; padding: 0 5px;
+  background: var(--bg-elevated); border: 1px solid var(--bd-medium);
+  border-radius: 3px; color: var(--tx-primary); font-size: 9px;
+  appearance: none; -webkit-appearance: none; min-width: 72px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0l3.5 4 3.5-4z' fill='%236e6e7a'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 5px center;
+  padding-right: 15px;
+}
+.ctrl-toggle {
+  width: 26px; height: 14px; background: var(--bd-medium);
+  border-radius: 7px; position: relative; cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s;
+}
+.ctrl-toggle.on { background: var(--accent); }
+.ctrl-toggle::after {
+  content: ''; position: absolute;
+  width: 10px; height: 10px; background: white; border-radius: 50%;
+  top: 2px; left: 2px; transition: left 0.15s;
+}
+.ctrl-toggle.on::after { left: 14px; }
+
+/* Range slider row — compact */
+.range-row { display: flex; flex-direction: column; gap: 3px; }
+.range-header { display: flex; align-items: center; gap: 5px; }
+.range-label { font-size: 9px; font-weight: 500; color: var(--tx-sec); flex: 1; }
+.range-badge {
+  font-size: 8px; font-weight: 700; color: var(--accent);
+  background: var(--accent-gh); border: 1px solid var(--accent-bd);
+  padding: 1px 5px; border-radius: 2px; white-space: nowrap;
+}
+.range-track-wrap { display: flex; }
+.range-track { flex: 1; height: 12px; display: flex; align-items: center; position: relative; }
+.range-bg { position: absolute; left: 0; right: 0; height: 3px; background: var(--bd-medium); border-radius: 2px; }
+.range-fill { position: absolute; left: 15%; right: 10%; height: 3px; background: rgba(129,140,248,0.35); border-radius: 2px; }
+.range-thumb { position: absolute; width: 9px; height: 9px; background: var(--accent); border-radius: 2px; }
+.th-l { left: calc(15% - 4px); }
+.th-r { right: calc(10% - 4px); }
+.range-minmax { display: flex; justify-content: space-between; font-size: 8px; color: var(--tx-muted); }
+
+/* Color swatch strip */
+.swatch-row { display: flex; gap: 3px; }
+.swatch {
+  flex: 1; height: 13px; border-radius: 2px; cursor: pointer;
+  border: 1.5px solid transparent; transition: border-color 0.1s;
+}
+.swatch.selected { border-color: var(--tx-primary); }
+.swatch-label { font-size: 8px; color: var(--tx-muted); margin-bottom: 2px; }
+
+/* ─── GRID AREA ─── */
+.grid-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+.grid-row { flex: 1; display: flex; overflow: hidden; }
+
+.row-resize {
+  height: 4px; flex-shrink: 0;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--bd-subtle);
+  border-bottom: 1px solid var(--bd-subtle);
+  cursor: row-resize;
+  display: flex; align-items: center; justify-content: center;
+}
+.row-resize:hover { background: var(--accent-gh); }
+.row-resize-dots { display: flex; gap: 3px; }
+.row-resize-dots span { width: 10px; height: 1px; background: var(--bd-medium); border-radius: 1px; }
+
+.col-resize {
+  width: 4px; flex-shrink: 0;
+  background: var(--bg-dark);
+  border-left: 1px solid var(--bd-subtle);
+  border-right: 1px solid var(--bd-subtle);
+  cursor: col-resize;
+}
+.col-resize:hover { background: var(--accent-gh); }
+
+.plot-cell {
+  flex: 1; position: relative; overflow: hidden;
+  cursor: pointer;
+  outline: 2px solid transparent; outline-offset: -2px;
+  transition: outline-color 0.15s;
+  background: var(--bg-panel);
+}
+.plot-cell.active { outline-color: var(--accent); }
+.plot-cell:not(.active):hover { outline-color: rgba(129,140,248,0.3); }
+
+.plot-canvas { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+.ph-kriging {
+  background: radial-gradient(ellipse at 40% 55%, rgba(99,102,241,0.25) 0%, rgba(99,102,241,0.06) 40%, transparent 70%),
+              radial-gradient(ellipse at 65% 35%, rgba(99,102,241,0.18) 0%, transparent 45%),
+              var(--bg-panel);
+}
+.ph-triangle {
+  background: linear-gradient(135deg, rgba(251,191,36,0.05) 0%, rgba(251,191,36,0.12) 50%, rgba(251,191,36,0.04) 100%),
+              var(--bg-panel);
+}
+.ph-scatter {
+  background: radial-gradient(circle at 55% 45%, rgba(74,222,128,0.08) 0%, transparent 55%),
+              var(--bg-panel);
+}
+.ph-empty { background: var(--bg-panel); }
+
+.cell-overlay {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center;
+  padding: 5px 7px; gap: 5px; pointer-events: none;
+}
+.cell-type-badge {
+  font-size: 8px; font-weight: 700; color: var(--tx-ter);
+  letter-spacing: 0.4px; text-transform: uppercase;
+  background: rgba(15,15,18,0.65); padding: 2px 5px; border-radius: 2px;
+  backdrop-filter: blur(4px);
+}
+.plot-cell.active .cell-type-badge { color: var(--accent); background: rgba(129,140,248,0.12); }
+.cell-active-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 6px var(--accent-glow);
+  display: none;
+}
+.plot-cell.active .cell-active-dot { display: block; }
+
+.empty-cell-content {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; pointer-events: none;
+}
+.empty-cell-icon { font-size: 18px; color: var(--tx-muted); }
+.empty-cell-text { font-size: 9px; color: var(--tx-muted); }
+
+.fake-axis { position: absolute; background: rgba(255,255,255,0.06); }
+.fake-axis.x { bottom: 20px; left: 30px; right: 10px; height: 1px; }
+.fake-axis.y { left: 30px; top: 10px; bottom: 20px; width: 1px; }
+
+/* ─── RIGHT PANEL ─── */
+.right-panel {
+  width: 234px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--bd-default);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow: hidden;
+}
+.rpanel-header {
+  height: 36px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--bd-default);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 12px; gap: 1px;
+}
+.rpanel-title { font-size: 12px; font-weight: 700; color: var(--tx-primary); }
+.rpanel-sub   { font-size: 8px; font-weight: 500; color: var(--tx-ter); }
+.rpanel-scroll { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 5px; }
+
+.global-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 7px;
+  background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15);
+  border-radius: 3px; font-size: 8px; color: #4ade80;
+}
+.global-badge-dot { width: 4px; height: 4px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER BAR ═══ -->
+<div class="header-bar">
+  <div class="header-logo">HeadAnalyser</div>
+  <div class="header-sep"></div>
+  <div class="header-dataset active"><div class="tab-dot"></div> Testsite_A.csv</div>
+  <div class="header-dataset"><div class="tab-dot"></div> Testsite_B.csv</div>
+  <div class="header-spacer"></div>
+
+  <!-- File group -->
+  <div class="hbg">
+    <button class="hbtn" title="Open"><span class="hbtn-icon">📂</span></button>
+    <button class="hbtn" title="Save"><span class="hbtn-icon">💾</span></button>
+    <button class="hbtn" title="Export"><span class="hbtn-icon">⬇</span></button>
+    <button class="hbtn" title="Report"><span class="hbtn-icon">📄</span></button>
+  </div>
+  <!-- Analysis group -->
+  <div class="hbg">
+    <button class="hbtn" title="Calculation Settings"><span class="hbtn-icon">⚙</span></button>
+    <button class="hbtn" title="Attribute Table"><span class="hbtn-icon">⊞</span></button>
+    <button class="hbtn" title="Sensitivity Analysis"><span class="hbtn-icon">〜</span></button>
+  </div>
+  <!-- Help / Theme -->
+  <div class="hbg">
+    <button class="hbtn" title="Help"><span class="hbtn-icon">?</span></button>
+    <button class="hbtn" title="Theme"><span class="hbtn-icon">◑</span></button>
+  </div>
+  <!-- Reset -->
+  <div class="hbg">
+    <button class="hbtn red" title="Reset"><span class="hbtn-icon">↺</span></button>
+  </div>
+  <!-- Window controls -->
+  <div class="hbg" style="margin-left:8px;">
+    <button class="hbtn" title="Minimize">–</button>
+    <button class="hbtn" title="Maximize">⬜</button>
+    <button class="hbtn red" title="Close">✕</button>
+  </div>
+</div>
+
+<!-- ═══ PLOT TOOLBAR ═══ -->
+<div class="plot-toolbar">
+
+  <!-- Sidebar toggle -->
+  <button class="tb-icon-btn" title="Toggle sidebar">☰</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Grid layout presets -->
+  <div class="tb-label">Layout</div>
+  <div class="layout-group">
+    <div class="layout-btn" onclick="setLayout(1)" title="1×1">
+      <svg width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </div>
+    <div class="layout-btn" onclick="setLayout(2)" title="1×2">
+      <svg width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="5.5" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="7.5" y="1" width="5.5" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </div>
+    <div class="layout-btn" onclick="setLayout(3)" title="2×1">
+      <svg width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="7.5" width="12" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </div>
+    <div class="layout-btn active" onclick="setLayout(4)" title="2×2">
+      <svg width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="7.5" y="1" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="7.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </div>
+    <div class="layout-btn" onclick="setLayout(5)" title="1×3">
+      <svg width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="3.2" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="5.4" y="1" width="3.2" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.8" y="1" width="3.2" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+    </div>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Plot type + Style combos -->
+  <select class="tb-select wide" title="Plot type" onchange="onPlotTypeToolbarChange(this.value)">
+    <option>2D Kriging</option>
+    <option>3D Surface</option>
+    <option>Gradient Vectors</option>
+    <option>Histogram</option>
+    <option>Rose Diagram</option>
+  </select>
+  <select class="tb-select narrow" title="Plot style">
+    <option>Default</option>
+    <option>Clean</option>
+    <option>Publication</option>
+  </select>
+
+  <div class="tb-sep"></div>
+
+  <!-- Toggle pills: Grid / Legend / Compass / Dark -->
+  <div class="pill-group">
+    <div class="pill" onclick="this.classList.toggle('on')" title="Toggle grid">
+      <div class="pill-dot"></div>Grid
+    </div>
+    <div class="pill on" onclick="this.classList.toggle('on')" title="Toggle legend">
+      <div class="pill-dot"></div>Legend
+    </div>
+    <div class="pill on" onclick="this.classList.toggle('on')" title="Toggle compass">
+      <div class="pill-dot"></div>Compass
+    </div>
+    <div class="pill" onclick="this.classList.toggle('on')" title="Dark canvas">
+      <div class="pill-dot"></div>Dark
+    </div>
+  </div>
+
+  <div class="tb-spacer"></div>
+
+  <!-- Right side: drawer toggles -->
+  <button class="tb-text-btn" onclick="this.classList.toggle('on')" title="Attribute table (Ctrl+T)">⊞ Table</button>
+  <button class="tb-text-btn" onclick="this.classList.toggle('on')" title="Quick stats drawer">∿ Stats</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Add point mode -->
+  <button class="tb-text-btn" onclick="this.classList.toggle('on')" title="Point creation mode">+ Add</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Action mini-group: Export / Template / Settings -->
+  <div class="tb-action-grp">
+    <button class="tb-mini-btn" title="Export plot">⬇</button>
+    <button class="tb-mini-btn" title="Plot templates">🎨</button>
+    <button class="tb-mini-btn" title="Plot settings">⚙</button>
+  </div>
+
+</div>
+
+<!-- ═══ CONTENT AREA ═══ -->
+<div class="content-area">
+
+  <!-- ── LEFT SIDEBAR ── -->
+  <div class="left-sidebar">
+
+    <!-- Active cell indicator -->
+    <div class="active-cell-header" id="activeCellHeader">
+      <div class="cell-indicator" id="cellIndicator"></div>
+      <div class="active-cell-label">
+        <div class="active-cell-id" id="activeCellId">Cell 1</div>
+        <div class="active-cell-plot" id="activeCellPlot">Hydraulic Head Kriging</div>
+      </div>
+    </div>
+
+    <!-- Plot type selector for this cell -->
+    <div class="plot-type-row">
+      <select class="plot-type-select" id="plotTypeSelect" onchange="changePlotType(this.value)">
+        <option value="kriging" selected>Hydraulic Head Kriging</option>
+        <option value="triangle">Triangle Plot</option>
+        <option value="scatter">Scatter / Depth Profile</option>
+        <option value="vectors">Gradient Vectors</option>
+        <option value="rose">Rose Diagram</option>
+        <option value="histogram">Histogram</option>
+        <option value="empty">— Empty —</option>
+      </select>
+    </div>
+
+    <!-- Dynamic controls -->
+    <div class="sidebar-scroll" id="sidebarControls"></div>
+
+  </div><!-- end left-sidebar -->
+
+
+  <!-- ── PLOT GRID ── -->
+  <div class="grid-area" id="gridArea">
+
+    <!-- ROW 1 -->
+    <div class="grid-row" id="row1">
+      <div class="plot-cell ph-kriging active" id="cell1" onclick="activateCell(1)">
+        <div class="plot-canvas">
+          <div style="position:absolute;inset:22px 8px 8px 28px;">
+            <div class="fake-axis x"></div>
+            <div class="fake-axis y"></div>
+            <div style="position:absolute;width:58%;height:52%;top:16%;left:20%;border-radius:50%;background:radial-gradient(ellipse,rgba(129,140,248,0.3) 0%,rgba(99,102,241,0.12) 50%,transparent 80%);"></div>
+            <div style="position:absolute;width:32%;height:38%;top:32%;left:50%;border-radius:50%;background:radial-gradient(ellipse,rgba(165,180,252,0.25) 0%,transparent 70%);"></div>
+            <div style="position:absolute;width:5px;height:5px;border-radius:50%;background:#f0f921;top:30%;left:22%;box-shadow:0 0 4px #f0f921;"></div>
+            <div style="position:absolute;width:5px;height:5px;border-radius:50%;background:#7e03a8;top:55%;left:60%;box-shadow:0 0 4px #7e03a8;"></div>
+            <div style="position:absolute;width:5px;height:5px;border-radius:50%;background:#cc4778;top:20%;left:70%;box-shadow:0 0 4px #cc4778;"></div>
+            <div style="position:absolute;width:5px;height:5px;border-radius:50%;background:#f89441;top:70%;left:30%;box-shadow:0 0 4px #f89441;"></div>
+          </div>
+        </div>
+        <div class="cell-overlay">
+          <div class="cell-active-dot"></div>
+          <div class="cell-type-badge">Hydraulic Head Kriging</div>
+        </div>
+      </div>
+
+      <div class="col-resize"></div>
+
+      <div class="plot-cell ph-triangle" id="cell2" onclick="activateCell(2)">
+        <div class="plot-canvas">
+          <div style="position:absolute;inset:22px 8px 8px 28px;">
+            <div class="fake-axis x"></div>
+            <div class="fake-axis y"></div>
+            <div style="position:absolute;left:10%;bottom:20px;width:80%;height:1px;background:rgba(251,191,36,0.3);transform-origin:left;"></div>
+            <div style="position:absolute;left:10%;bottom:20px;width:82%;height:1px;background:rgba(251,191,36,0.2);transform:rotate(-45deg);transform-origin:left;"></div>
+            <div style="position:absolute;left:10%;bottom:20px;width:62%;height:1px;background:rgba(251,191,36,0.35);transform:rotate(-30deg);transform-origin:left;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#fbbf24;top:40%;left:45%;opacity:0.8;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#fbbf24;top:30%;left:55%;opacity:0.7;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#fbbf24;top:55%;left:35%;opacity:0.9;"></div>
+          </div>
+        </div>
+        <div class="cell-overlay">
+          <div class="cell-active-dot"></div>
+          <div class="cell-type-badge">Triangle Plot</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row-resize">
+      <div class="row-resize-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- ROW 2 -->
+    <div class="grid-row" id="row2">
+      <div class="plot-cell ph-scatter" id="cell3" onclick="activateCell(3)">
+        <div class="plot-canvas">
+          <div style="position:absolute;inset:22px 8px 8px 28px;">
+            <div class="fake-axis x"></div>
+            <div class="fake-axis y"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#4ade80;top:15%;left:30%;opacity:0.9;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#4ade80;top:25%;left:45%;opacity:0.8;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#4ade80;top:35%;left:38%;opacity:0.85;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#4ade80;top:50%;left:55%;opacity:0.9;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#4ade80;top:60%;left:48%;opacity:0.75;"></div>
+            <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#f87171;top:42%;left:52%;opacity:0.9;"></div>
+            <div style="position:absolute;width:3px;height:50%;bottom:20px;left:30%;background:rgba(74,222,128,0.15);border-radius:1px;"></div>
+          </div>
+        </div>
+        <div class="cell-overlay">
+          <div class="cell-active-dot"></div>
+          <div class="cell-type-badge">Depth Profile</div>
+        </div>
+      </div>
+
+      <div class="col-resize"></div>
+
+      <div class="plot-cell ph-empty" id="cell4" onclick="activateCell(4)">
+        <div class="plot-canvas">
+          <div class="empty-cell-content">
+            <div class="empty-cell-icon">⊞</div>
+            <div class="empty-cell-text">Click to assign a plot</div>
+          </div>
+        </div>
+        <div class="cell-overlay">
+          <div class="cell-active-dot"></div>
+          <div class="cell-type-badge">Empty</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end grid-area -->
+
+
+  <!-- ── RIGHT PROPERTIES PANEL ── -->
+  <div class="right-panel">
+    <div class="rpanel-header">
+      <div class="rpanel-title">Properties</div>
+      <div class="rpanel-sub">Dataset Configuration</div>
+    </div>
+    <div class="rpanel-scroll">
+
+      <div class="global-badge">
+        <div class="global-badge-dot"></div>
+        Global filters — applied to all cells
+      </div>
+
+      <div class="sc">
+        <div class="sh"><div class="ab ab-acc"></div><span class="st">Data Filters</span><span class="chev">›</span></div>
+        <div class="sb">
+          <div class="range-row">
+            <div class="range-header"><span class="range-label">Hydraulic Head (m)</span><span class="range-badge">-15 – 8</span></div>
+            <div class="range-track-wrap">
+              <div class="range-track"><div class="range-bg"></div><div class="range-fill"></div><div class="range-thumb th-l"></div><div class="range-thumb th-r"></div></div>
+            </div>
+            <div class="range-minmax"><span>-22.0</span><span>14.0</span></div>
+          </div>
+          <div style="font-size:8px;font-style:italic;color:var(--tx-muted);">Depth source: Top+Bottom (depth_top, depth_bot)</div>
+        </div>
+      </div>
+
+      <div class="sc">
+        <div class="sh"><div class="ab ab-warn"></div><span class="st">Point Selection</span><span class="chev">›</span></div>
+        <div class="sb">
+          <button style="width:100%;padding:4px 8px;background:var(--bg-elevated);border:1px solid var(--bd-medium);border-radius:3px;color:var(--tx-primary);font-size:10px;font-weight:600;cursor:pointer;">Select Points to Exclude</button>
+          <div style="font-size:8px;font-style:italic;color:var(--tx-muted);">Or click points on the plot to exclude / include</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- end content-area -->
+
+
+<script>
+const cellData = {
+  1: { label:'Cell 1', plot:'Hydraulic Head Kriging', type:'kriging',   color:'#818cf8' },
+  2: { label:'Cell 2', plot:'Triangle Plot',           type:'triangle',  color:'#fbbf24' },
+  3: { label:'Cell 3', plot:'Depth Profile',           type:'scatter',   color:'#4ade80' },
+  4: { label:'Cell 4', plot:'Empty',                   type:'empty',     color:'#4a4a55' },
+};
+
+// Compact sidebar content per plot type
+const sidebarContent = {
+
+  kriging: `
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Display</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Interpolation</span><select class="ctrl-select"><option>Kriging</option><option>IDW</option><option>Linear</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Colour map</span><select class="ctrl-select"><option>Plasma</option><option>Viridis</option><option>RdBu</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Contour lines</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Show points</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Colorbar</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div><div class="swatch-label">Colour map preview</div>
+      <div class="swatch-row">
+        <div class="swatch" style="background:linear-gradient(to right,#0d0887,#7e03a8,#cc4778,#f89441,#f0f921);"></div>
+        <div class="swatch selected" style="background:linear-gradient(to right,#440154,#31688e,#35b779,#fde725);"></div>
+        <div class="swatch" style="background:linear-gradient(to right,#4575b4,#ffffbf,#d73027);"></div>
+        <div class="swatch" style="background:linear-gradient(to right,#2c7bb6,#abd9e9,#ffffbf,#fdae61,#d7191c);"></div>
+      </div></div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-warn"></div><span class="st">Variogram</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Model</span><select class="ctrl-select"><option>Spherical</option><option>Exponential</option><option>Gaussian</option></select></div>
+      <div class="range-row">
+        <div class="range-header"><span class="range-label">Range (m)</span><span class="range-badge">50 – 800</span></div>
+        <div class="range-track-wrap"><div class="range-track"><div class="range-bg"></div><div class="range-fill"></div><div class="range-thumb th-l"></div><div class="range-thumb th-r"></div></div></div>
+        <div class="range-minmax"><span>0</span><span>1200</span></div>
+      </div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-suc"></div><span class="st">Annotations</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Point labels</span><div class="ctrl-toggle" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Depth labels</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>`,
+
+  triangle: `
+    <div class="sc"><div class="sh"><div class="ab ab-warn"></div><span class="st">Display</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Line colour</span><select class="ctrl-select"><option>By depth</option><option>By point</option><option>Uniform</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Line width</span><select class="ctrl-select"><option>1 px</option><option>1.5 px</option><option>2 px</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Reject overlay</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Aspect ratio</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Rejection Filter</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="range-row">
+        <div class="range-header"><span class="range-label">Max angle (°)</span><span class="range-badge">10 – 60</span></div>
+        <div class="range-track-wrap"><div class="range-track"><div class="range-bg"></div><div class="range-fill" style="left:20%;right:30%;"></div><div class="range-thumb" style="left:calc(20% - 4px);"></div><div class="range-thumb" style="right:calc(30% - 4px);"></div></div></div>
+        <div class="range-minmax"><span>0°</span><span>90°</span></div>
+      </div>
+      <div class="ctrl-row"><span class="ctrl-label">Show rejected</span><div class="ctrl-toggle" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>`,
+
+  scatter: `
+    <div class="sc"><div class="sh"><div class="ab ab-suc"></div><span class="st">Display</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">X axis</span><select class="ctrl-select"><option>Hydraulic head</option><option>Depth (top)</option><option>Depth (bot)</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Y axis</span><select class="ctrl-select"><option>Depth (top)</option><option>Hydraulic head</option><option>Point ID</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Colour by</span><select class="ctrl-select"><option>Head value</option><option>Depth</option><option>Uniform</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Included only</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Regression</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Trend line</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Type</span><select class="ctrl-select"><option>Linear</option><option>Polynomial</option></select></div>
+    </div></div>`,
+
+  vectors: `
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Display</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Colour map</span><select class="ctrl-select"><option>Viridis</option><option>Plasma</option><option>Turbo</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Show points</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Labels</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Mean vector</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-warn"></div><span class="st">Arrow Options</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="range-row">
+        <div class="range-header"><span class="range-label">Arrow scale</span><span class="range-badge">5</span></div>
+        <div class="range-track-wrap"><div class="range-track"><div class="range-bg"></div><div class="range-fill" style="left:0;right:75%;"></div><div class="range-thumb" style="left:calc(5% - 4px);"></div><div class="range-thumb" style="display:none"></div></div></div>
+        <div class="range-minmax"><span>1</span><span>100</span></div>
+      </div>
+    </div></div>`,
+
+  rose: `
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Data</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Bar mode</span><select class="ctrl-select"><option>Triangle count</option><option>Gradient sum</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Bins</span><select class="ctrl-select"><option>16</option><option>8</option><option>32</option></select></div>
+    </div></div>
+    <div class="sc"><div class="sh"><div class="ab ab-warn"></div><span class="st">Overlays</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Mean angle</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Weighted mean</span><div class="ctrl-toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Confidence int.</span><div class="ctrl-toggle" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>`,
+
+  histogram: `
+    <div class="sc"><div class="sh"><div class="ab ab-acc"></div><span class="st">Display</span><span class="chev">›</span></div>
+    <div class="sb">
+      <div class="ctrl-row"><span class="ctrl-label">Bins</span><select class="ctrl-select"><option>30</option><option>20</option><option>50</option><option>Auto</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Bar colour</span><select class="ctrl-select"><option>Grey</option><option>Blue</option><option>Accent</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">KDE overlay</span><div class="ctrl-toggle" onclick="this.classList.toggle('on')"></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Mean line</span><div class="ctrl-toggle" onclick="this.classList.toggle('on')"></div></div>
+    </div></div>`,
+
+  empty: `
+    <div style="padding:18px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;">
+      <div style="font-size:18px;color:var(--tx-muted);">⊞</div>
+      <div style="font-size:10px;font-weight:600;color:var(--tx-sec);">No plot assigned</div>
+      <div style="font-size:9px;color:var(--tx-ter);">Select a plot type above to populate this cell.</div>
+    </div>`,
+};
+
+let activeCell = 1;
+
+function activateCell(id) {
+  document.querySelectorAll('.plot-cell').forEach(c => c.classList.remove('active'));
+  document.getElementById('cell' + id).classList.add('active');
+  activeCell = id;
+  const d = cellData[id];
+  document.getElementById('activeCellId').textContent   = d.label;
+  document.getElementById('activeCellPlot').textContent = d.plot;
+  document.getElementById('cellIndicator').style.background = d.color;
+  const sel = document.getElementById('plotTypeSelect');
+  sel.value = d.type;
+  document.getElementById('sidebarControls').innerHTML = sidebarContent[d.type] || sidebarContent.empty;
+}
+
+function changePlotType(type) {
+  const labels = { kriging:'Hydraulic Head Kriging', triangle:'Triangle Plot', scatter:'Depth Profile', vectors:'Gradient Vectors', rose:'Rose Diagram', histogram:'Histogram', empty:'Empty' };
+  if (cellData[activeCell]) {
+    cellData[activeCell].plot = labels[type] || type;
+    cellData[activeCell].type = type;
+    document.getElementById('activeCellPlot').textContent = cellData[activeCell].plot;
+    const badge = document.querySelector('#cell' + activeCell + ' .cell-type-badge');
+    if (badge) badge.textContent = cellData[activeCell].plot;
+    document.getElementById('sidebarControls').innerHTML = sidebarContent[type] || sidebarContent.empty;
+  }
+}
+
+function setLayout(n) {
+  document.querySelectorAll('.layout-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === n));
+}
+
+// Init
+activateCell(1);
+</script>
+</body>
+</html>
