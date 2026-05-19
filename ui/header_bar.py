@@ -250,7 +250,7 @@ class HeaderBar(QWidget):
         title.setStyleSheet(f"""
             background-color: transparent;
             color: {Colors.ACCENT_PRIMARY};
-            font-size: 18px;
+            font-size: {metrics.font_display}px;
             font-weight: 800;
             letter-spacing: -0.3px;
         """)

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Properties Panel — Redesign Concept</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0a0d;
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 32px;
+  gap: 48px;
+  min-height: 100vh;
+}
+
+.panel-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+.panel-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #4a4a55;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* ─── BASE PANEL ─── */
+.panel {
+  width: 264px;
+  background: #1a1a1f;
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  max-height: 860px;
+}
+
+/* ─── PANEL HEADER ─── */
+.panel-header-old {
+  background: linear-gradient(to bottom, #28282f, #212127);
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 46px;
+  flex-shrink: 0;
+}
+.panel-header-new {
+  background: #28282f;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.panel-title   { font-size: 13px; font-weight: 700; color: #ececf0; line-height: 1; }
+.panel-subtitle{ font-size: 9px;  font-weight: 500; color: #6e6e7a; line-height: 1; }
+
+/* ─── SCROLL CONTENT ─── */
+.panel-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ─── SECTION CARD — OLD ─── */
+.sc-old {
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sh-old {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+}
+.sh-old:hover { background: #2f2f37; }
+
+.icon-box {
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; flex-shrink: 0;
+}
+.ib-accent  { background: rgba(129,140,248,0.08); color: #818cf8; }
+.ib-warning { background: rgba(251,191,36,0.12);  color: #fbbf24; }
+
+.st-old {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  color: #a8a8b3; flex: 1; text-transform: uppercase;
+}
+.chevron { font-size: 9px; color: #4a4a55; }
+
+.sb-old {
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ─── SECTION CARD — NEW ─── */
+.sc-new {
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sh-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: #28282f;
+  cursor: pointer;
+}
+.sh-new:hover { background: #2f2f37; }
+
+.accent-bar { width: 2px; height: 12px; border-radius: 1px; flex-shrink: 0; }
+.ab-accent  { background: #818cf8; }
+.ab-warning { background: #fbbf24; }
+
+.st-new {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+  color: #a8a8b3; flex: 1; text-transform: uppercase;
+}
+.sb-new { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ─── RANGE SLIDER WIDGET ─── */
+.range-widget { display: flex; flex-direction: column; gap: 5px; }
+.range-widget.dimmed { opacity: 0.38; pointer-events: none; }
+
+.range-row { display: flex; align-items: center; gap: 6px; }
+.range-label { font-size: 11px; font-weight: 500; color: #a8a8b3; flex: 1; }
+
+/* Old badge */
+.rb-old {
+  font-size: 10px; font-weight: 700; color: #818cf8;
+  background: rgba(129,140,248,0.08);
+  border: 1px solid rgba(129,140,248,0.25);
+  border-radius: 4px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+/* New badge — tighter */
+.rb-new {
+  font-size: 10px; font-weight: 700; color: #818cf8;
+  background: rgba(129,140,248,0.08);
+  border: 1px solid rgba(129,140,248,0.22);
+  border-radius: 3px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.dual-track { display: flex; gap: 6px; }
+.track-outer {
+  flex: 1; height: 14px;
+  display: flex; align-items: center;
+  position: relative;
+}
+.track-bg {
+  position: absolute; left: 0; right: 0;
+  height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px;
+}
+.track-fill {
+  position: absolute; left: 18%; right: 12%;
+  height: 3px; background: rgba(129,140,248,0.22); border-radius: 2px;
+}
+.thumb {
+  position: absolute;
+  width: 10px; height: 10px;
+  background: #818cf8; border-radius: 50%;
+  border: 1.5px solid #1a1a1f;
+}
+.th-min { left: calc(18% - 5px); }
+.th-max { right: calc(12% - 5px); }
+
+.range-minmax { display: flex; justify-content: space-between; font-size: 9px; color: #4a4a55; }
+
+/* Depth hint */
+.depth-hint {
+  font-size: 9px; font-style: italic;
+  line-height: 1.4; padding: 4px 6px; border-radius: 3px;
+}
+.dh-ok   { color: #6e6e7a; border: 1px solid rgba(255,255,255,0.04); }
+.dh-warn { color: #fbbf24; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); }
+
+/* ─── BUTTONS ─── */
+.btn-primary-old {
+  display: block; width: 100%;
+  padding: 10px 16px;
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  color: #ececf0; font-size: 11px; font-weight: 600;
+  cursor: pointer; text-align: center;
+}
+.btn-primary-new {
+  display: block; width: 100%;
+  padding: 6px 12px;
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 4px;
+  color: #ececf0; font-size: 11px; font-weight: 600;
+  cursor: pointer; text-align: center;
+}
+
+/* Info labels */
+.info-box-old {
+  font-size: 10px; font-style: italic; color: #6e6e7a;
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 4px; padding: 6px 8px;
+}
+.info-note-new { font-size: 9px; font-style: italic; color: #4a4a55; }
+
+/* List caption */
+.list-caption-old { font-size: 10px; font-weight: 600; color: #a8a8b3; }
+.list-caption-new {
+  font-size: 9px; font-weight: 700; color: #6e6e7a;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Excluded list */
+.excl-list {
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.07);
+  height: 50px; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: #4a4a55; font-style: italic;
+}
+
+/* Small buttons */
+.btn-row { display: flex; gap: 5px; }
+
+.btn-sm-old {
+  flex: 1; padding: 6px 8px;
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 6px; color: #a8a8b3;
+  font-size: 10px; cursor: pointer; text-align: center;
+}
+.btn-sm-new {
+  flex: 1; padding: 4px 8px;
+  background: #212127;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 3px; color: #a8a8b3;
+  font-size: 10px; cursor: pointer; text-align: center;
+}
+.btn-danger { color: #f87171 !important; }
+
+/* ─── ABOUT — OLD ─── */
+.about-logo-area { display: flex; justify-content: center; padding: 10px 0 14px; }
+.about-logo-old {
+  width: 72px; height: 48px;
+  background: rgba(129,140,248,0.06);
+  border: 1px solid rgba(129,140,248,0.12);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #818cf8;
+}
+.about-info-old {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding-bottom: 12px;
+}
+.about-name-old  { font-size: 16px; font-weight: 700; color: #ececf0; }
+.about-ver-old {
+  font-size: 11px; font-weight: 600; color: #818cf8;
+  background: rgba(129,140,248,0.08); padding: 3px 10px; border-radius: 12px;
+}
+.about-author-old  { font-size: 11px; color: #a8a8b3; }
+.about-release-old { font-size: 10px; color: #a8a8b3; }
+
+.about-credits-old {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  padding: 10px 0 4px;
+}
+.about-cred-head  { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #a8a8b3; }
+.about-cred-body  { font-size: 10px; color: #6e6e7a; text-align: center; line-height: 1.5; }
+.about-cred-note  { font-size: 9px; font-style: italic; color: #4a4a55; text-align: center; }
+.about-dtu-old {
+  font-size: 10px; font-weight: 600; color: #ececf0;
+  background: rgba(153,0,0,0.15); border: 1px solid rgba(153,0,0,0.3);
+  padding: 5px 12px; border-radius: 6px;
+}
+
+/* ─── ABOUT — NEW ─── */
+.about-identity {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 8px;
+}
+.about-logo-new {
+  width: 38px; height: 38px;
+  background: rgba(129,140,248,0.06);
+  border: 1px solid rgba(129,140,248,0.14);
+  border-radius: 3px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: #818cf8;
+}
+.about-text { display: flex; flex-direction: column; gap: 3px; }
+.about-name-new { font-size: 13px; font-weight: 700; color: #ececf0; line-height: 1; }
+.about-meta { display: flex; align-items: center; gap: 6px; }
+.about-ver-new {
+  font-size: 9px; font-weight: 600; color: #818cf8;
+  background: rgba(129,140,248,0.08);
+  border: 1px solid rgba(129,140,248,0.20);
+  padding: 1px 6px; border-radius: 3px;
+}
+.about-author-new { font-size: 10px; color: #6e6e7a; }
+
+.about-divider { height: 1px; background: rgba(255,255,255,0.05); margin: 2px 0 6px; }
+
+.about-credits { display: flex; flex-direction: column; gap: 4px; }
+.about-cred-row { display: flex; align-items: flex-start; gap: 8px; }
+.about-cred-key {
+  font-size: 9px; font-weight: 700; color: #4a4a55;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  width: 64px; flex-shrink: 0; padding-top: 1px; line-height: 1.3;
+}
+.about-cred-val { font-size: 9px; color: #6e6e7a; line-height: 1.4; }
+.about-dtu-new {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 600; color: #a8a8b3;
+  background: rgba(153,0,0,0.10); border: 1px solid rgba(153,0,0,0.20);
+  padding: 3px 8px; border-radius: 3px; margin-top: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     CURRENT DESIGN
+════════════════════════════════════════════ -->
+<div class="panel-wrap">
+  <div class="panel-label">Current</div>
+  <div class="panel" style="border-radius:6px;">
+
+    <div class="panel-header-old">
+      <div class="panel-title">Properties</div>
+      <div class="panel-subtitle">Dataset Configuration</div>
+    </div>
+
+    <div class="panel-content">
+
+      <!-- DATA FILTERS -->
+      <div class="sc-old">
+        <div class="sh-old">
+          <div class="icon-box ib-accent">⊞</div>
+          <span class="st-old">Data Filters</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-old">
+          <!-- Depth (disabled/dimmed) -->
+          <div class="range-widget dimmed">
+            <div class="range-row">
+              <span class="range-label">Depth Range (m)</span>
+              <span class="rb-old">—</span>
+            </div>
+            <div class="dual-track">
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+            </div>
+            <div class="range-minmax"><span>—</span><span>—</span></div>
+            <div class="depth-hint dh-warn">Depth source: No dataset loaded</div>
+          </div>
+          <!-- Head (active) -->
+          <div class="range-widget">
+            <div class="range-row">
+              <span class="range-label">Hydraulic Head (m)</span>
+              <span class="rb-old">-15.2–8.4</span>
+            </div>
+            <div class="dual-track">
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+            </div>
+            <div class="range-minmax"><span>-18.6</span><span>12.1</span></div>
+            <div class="depth-hint dh-ok">Depth source: Top+Bottom (depth_top, depth_bot)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POINT SELECTION -->
+      <div class="sc-old">
+        <div class="sh-old">
+          <div class="icon-box ib-warning">☞</div>
+          <span class="st-old">Point Selection</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-old">
+          <button class="btn-primary-old">Select Points to Exclude</button>
+          <div class="info-box-old">Or click points on plot to exclude / include</div>
+          <div class="list-caption-old">Excluded Points:</div>
+          <div class="excl-list">No excluded points</div>
+          <div class="btn-row">
+            <button class="btn-sm-old btn-danger">Clear All</button>
+            <button class="btn-sm-old">Restore Selected</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="sc-old">
+        <div class="sh-old">
+          <div class="icon-box ib-accent">ℹ</div>
+          <span class="st-old">About</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-old">
+          <div class="about-logo-area">
+            <div class="about-logo-old">DTU</div>
+          </div>
+          <div class="about-info-old">
+            <div class="about-name-old">HeadAnalyser</div>
+            <div class="about-ver-old">v2.0.0</div>
+            <div class="about-author-old">By Oliver B. Lund</div>
+            <div class="about-release-old">Release: February 2025</div>
+          </div>
+          <div class="about-credits-old">
+            <div class="about-cred-head">ACKNOWLEDGEMENTS</div>
+            <div class="about-cred-body">
+              Calculations originally provided by<br>
+              <span style="color:#a8a8b3;font-weight:500;">Anton Bo Bøllingtoft</span> &amp;<br>
+              <span style="color:#a8a8b3;font-weight:500;">Grégory Guillaume Lemaire</span><br>
+              from DTU Sustain
+            </div>
+            <div class="about-cred-note">Based on the work of Dr. J.F. Devlin,<br>Kansas University</div>
+            <div class="about-dtu-old">Technical University of Denmark</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PROPOSED DESIGN
+════════════════════════════════════════════ -->
+<div class="panel-wrap">
+  <div class="panel-label">Proposed</div>
+  <div class="panel" style="border-radius:4px;">
+
+    <div class="panel-header-new">
+      <div class="panel-title">Properties</div>
+      <div class="panel-subtitle">Dataset Configuration</div>
+    </div>
+
+    <div class="panel-content">
+
+      <!-- DATA FILTERS -->
+      <div class="sc-new">
+        <div class="sh-new">
+          <div class="accent-bar ab-accent"></div>
+          <span class="st-new">Data Filters</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-new">
+          <!-- Depth (disabled/dimmed) -->
+          <div class="range-widget dimmed">
+            <div class="range-row">
+              <span class="range-label">Depth Range (m)</span>
+              <span class="rb-new">—</span>
+            </div>
+            <div class="dual-track">
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+            </div>
+            <div class="range-minmax"><span>—</span><span>—</span></div>
+            <div class="depth-hint dh-warn">Depth source: No dataset loaded</div>
+          </div>
+          <!-- Head (active) -->
+          <div class="range-widget">
+            <div class="range-row">
+              <span class="range-label">Hydraulic Head (m)</span>
+              <span class="rb-new">-15.2–8.4</span>
+            </div>
+            <div class="dual-track">
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+              <div class="track-outer"><div class="track-bg"></div><div class="track-fill"></div><div class="thumb th-min"></div><div class="thumb th-max"></div></div>
+            </div>
+            <div class="range-minmax"><span>-18.6</span><span>12.1</span></div>
+            <div class="depth-hint dh-ok">Depth source: Top+Bottom (depth_top, depth_bot)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POINT SELECTION -->
+      <div class="sc-new">
+        <div class="sh-new">
+          <div class="accent-bar ab-warning"></div>
+          <span class="st-new">Point Selection</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-new">
+          <button class="btn-primary-new">Select Points to Exclude</button>
+          <div class="info-note-new">Or click points on the plot to exclude / include</div>
+          <div class="list-caption-new">Excluded Points</div>
+          <div class="excl-list">No excluded points</div>
+          <div class="btn-row">
+            <button class="btn-sm-new btn-danger">Clear All</button>
+            <button class="btn-sm-new">Restore Selected</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="sc-new">
+        <div class="sh-new">
+          <div class="accent-bar ab-accent"></div>
+          <span class="st-new">About</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="sb-new">
+          <!-- Compact identity row -->
+          <div class="about-identity">
+            <div class="about-logo-new">DTU</div>
+            <div class="about-text">
+              <div class="about-name-new">HeadAnalyser</div>
+              <div class="about-meta">
+                <span class="about-ver-new">v2.0.0</span>
+                <span class="about-author-new">Oliver B. Lund</span>
+              </div>
+            </div>
+          </div>
+          <div class="about-divider"></div>
+          <!-- Credits table -->
+          <div class="about-credits">
+            <div class="about-cred-row">
+              <span class="about-cred-key">Calcs by</span>
+              <span class="about-cred-val">A. Bøllingtoft &amp; G. Lemaire, DTU Sustain</span>
+            </div>
+            <div class="about-cred-row">
+              <span class="about-cred-key">Based on</span>
+              <span class="about-cred-val">Dr. J.F. Devlin, Kansas University</span>
+            </div>
+            <div class="about-cred-row">
+              <span class="about-cred-key">Released</span>
+              <span class="about-cred-val">February 2025</span>
+            </div>
+          </div>
+          <div><span class="about-dtu-new">Technical University of Denmark</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

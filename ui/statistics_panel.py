@@ -36,15 +36,15 @@ class MetricCard(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(4)
 
         # Label
         title = QLabel(label)
         title.setStyleSheet(f"""
             color: {Colors.TEXT_TERTIARY};
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 9px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             background: transparent;
@@ -56,7 +56,7 @@ class MetricCard(QWidget):
         self.value_label = QLabel("-")
         self.value_label.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 600;
             background: transparent;
             border: none;
@@ -71,7 +71,7 @@ class MetricCard(QWidget):
         rect = self.rect()
         path = QPainterPath()
         path.addRoundedRect(float(rect.x()), float(rect.y()),
-                            float(rect.width()), float(rect.height()), 12.0, 12.0)
+                            float(rect.width()), float(rect.height()), 6.0, 6.0)
 
         # Fill background
         painter.setPen(Qt.NoPen)
@@ -172,21 +172,19 @@ class SectionIconBox(QWidget):
 
     def __init__(self, color: str, parent=None):
         super().__init__(parent)
-        self.setFixedSize(28, 28)
+        self.setFixedSize(20, 20)
         self._color = QColor(color)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        # Background: 10% alpha of the color
         bg = QColor(self._color)
         bg.setAlpha(25)
         painter.setPen(Qt.NoPen)
         painter.setBrush(bg)
-        painter.drawRoundedRect(0, 0, 28, 28, 8, 8)
-        # Foreground: small colored dot
+        painter.drawRoundedRect(0, 0, 20, 20, 5, 5)
         painter.setBrush(self._color)
-        painter.drawEllipse(9, 9, 10, 10)
+        painter.drawEllipse(6, 6, 8, 8)
         painter.end()
 
 
@@ -204,7 +202,7 @@ class CollapsibleSection(QWidget):
             CollapsibleSection {{
                 background-color: {Colors.BG_PANEL};
                 border: 1px solid {Colors.BORDER_DEFAULT};
-                border-radius: {Colors.RADIUS_XL};
+                border-radius: 6px;
             }}
             CollapsibleSection:hover {{
                 border-color: {Colors.BORDER_MEDIUM};
@@ -220,8 +218,8 @@ class CollapsibleSection(QWidget):
         self.header_widget.setCursor(Qt.PointingHandCursor)
         self.header_widget.setStyleSheet("background: transparent;")
         header_layout = QHBoxLayout(self.header_widget)
-        header_layout.setContentsMargins(18, 14, 18, 14)
-        header_layout.setSpacing(12)
+        header_layout.setContentsMargins(14, 9, 14, 9)
+        header_layout.setSpacing(8)
 
         # Colored icon box
         if icon_color:
@@ -232,7 +230,7 @@ class CollapsibleSection(QWidget):
         self._title_label = QLabel(title)
         self._title_label.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 600;
             background: transparent;
         """)
@@ -260,7 +258,7 @@ class CollapsibleSection(QWidget):
         self.content = QWidget()
         self.content.setStyleSheet("background: transparent;")
         self.content_layout = QVBoxLayout(self.content)
-        self.content_layout.setContentsMargins(18, 12, 18, 16)
+        self.content_layout.setContentsMargins(12, 10, 12, 12)
         self.content_layout.setSpacing(8)
 
         main_layout.addWidget(self.content)
@@ -335,7 +333,7 @@ class StatisticsPanel(QWidget):
 
         # Header
         header = QWidget()
-        header.setFixedHeight(56)
+        header.setFixedHeight(42)
         header.setStyleSheet(f"""
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 {Colors.BG_ELEVATED},
@@ -344,12 +342,12 @@ class StatisticsPanel(QWidget):
         """)
 
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 0, 20, 0)
+        header_layout.setContentsMargins(14, 0, 14, 0)
 
         title = QLabel("Statistics Dashboard")
         title.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 18px;
+            font-size: 13px;
             font-weight: 700;
             background: transparent;
         """)
@@ -388,8 +386,8 @@ class StatisticsPanel(QWidget):
         scroll_content = QWidget()
         scroll_content.setStyleSheet(f"background-color: {Colors.BG_DARK};")
         content_layout = QVBoxLayout(scroll_content)
-        content_layout.setContentsMargins(20, 20, 20, 20)
-        content_layout.setSpacing(16)
+        content_layout.setContentsMargins(14, 14, 14, 14)
+        content_layout.setSpacing(10)
 
         # KEY METRICS BAR
         metrics_row = QHBoxLayout()

@@ -41,12 +41,10 @@ class PanelHeader(QWidget):
         # Updated gradient: from BG_ELEVATED (#28282f) to BG_SURFACE (#212127)
         # with 1px border-bottom using BORDER_DEFAULT
         self.setStyleSheet(f"""
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {Colors.BG_ELEVATED},
-                stop:1 {Colors.BG_SURFACE});
+            background-color: {Colors.BG_ELEVATED};
             border: none;
             border-bottom: 1px solid {Colors.BORDER_DEFAULT};
-            border-radius: {Colors.RADIUS_XL} {Colors.RADIUS_XL} 0px 0px;
+            border-radius: 4px 4px 0px 0px;
         """)
 
         layout = QHBoxLayout(self)
@@ -56,7 +54,7 @@ class PanelHeader(QWidget):
         label.setStyleSheet(f"""
             background-color: transparent;
             color: {Colors.ACCENT_PRIMARY};
-            font-size: 11px;
+            font-size: {metrics.font_sm}px;
             font-weight: 700;
             letter-spacing: 1.2px;
         """)
@@ -118,7 +116,9 @@ class RangeSliderWidget(QWidget):
         label_row = QHBoxLayout()
 
         self.label = QLabel(label)
-        self.label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 11px; font-weight: 500;")
+        self.label.setStyleSheet(
+            f"color: {Colors.TEXT_SECONDARY}; font-size: {metrics.font_md}px; font-weight: 500;"
+        )
         label_row.addWidget(self.label)
 
         label_row.addStretch()
@@ -130,11 +130,11 @@ class RangeSliderWidget(QWidget):
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.value_label.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
-            font-size: 10px;
+            font-size: {metrics.font_sm}px;
             font-weight: 700;
             background-color: {Colors.ACCENT_GHOST};
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 2px 7px;
+            border-radius: 3px;
             border: 1px solid {Colors.BORDER_ACCENT};
         """)
         label_row.addWidget(self.value_label)
@@ -172,13 +172,13 @@ class RangeSliderWidget(QWidget):
         # Range labels
         range_layout = QHBoxLayout()
         self.min_label = QLabel("0.0")
-        self.min_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 10px;")
+        self.min_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: {metrics.font_sm}px;")
         range_layout.addWidget(self.min_label)
 
         range_layout.addStretch()
 
         self.max_label = QLabel("100.0")
-        self.max_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 10px;")
+        self.max_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: {metrics.font_sm}px;")
         range_layout.addWidget(self.max_label)
 
         layout.addLayout(range_layout)
@@ -297,9 +297,8 @@ class PropertiesPanel(QWidget):
         title_widget = QWidget()
         title_widget.setFixedHeight(metrics.title_header_height)
         title_widget.setStyleSheet(f"""
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {Colors.BG_ELEVATED},
-                stop:1 {Colors.BG_SURFACE});
+            background-color: {Colors.BG_ELEVATED};
+            border-bottom: 1px solid {Colors.BORDER_DEFAULT};
         """)
         title_layout = QVBoxLayout(title_widget)
         title_layout.setContentsMargins(14 if metrics.compact else 16, 8 if metrics.compact else 10, 14 if metrics.compact else 16, 8 if metrics.compact else 10)
@@ -309,7 +308,7 @@ class PropertiesPanel(QWidget):
         title_label = QLabel("Properties")
         title_label.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 15px;
+            font-size: {metrics.font_title}px;
             font-weight: 700;
             background-color: transparent;
         """)
@@ -319,7 +318,7 @@ class PropertiesPanel(QWidget):
         subtitle_label = QLabel("Dataset Configuration")
         subtitle_label.setStyleSheet(f"""
             color: {Colors.TEXT_TERTIARY};
-            font-size: 10px;
+            font-size: {metrics.font_sm}px;
             font-weight: 500;
             background-color: transparent;
         """)
@@ -415,10 +414,10 @@ class PropertiesPanel(QWidget):
             QPushButton {{
                 font-size: 11px;
                 font-weight: 600;
-                padding: 10px 16px;
+                padding: 6px 12px;
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: {Colors.RADIUS_MD};
+                border-radius: 4px;
                 color: {Colors.TEXT_PRIMARY};
             }}
             QPushButton:hover {{
@@ -435,23 +434,20 @@ class PropertiesPanel(QWidget):
         select_points_btn.clicked.connect(self._open_point_selection_dialog)
         section.addWidget(select_points_btn)
 
-        # Info label - uses BORDER_SUBTLE and BG_SURFACE
-        info_label = QLabel("Or click points on plot to exclude/include")
+        info_label = QLabel("Or click points on the plot to exclude / include")
         info_label.setWordWrap(True)
         info_label.setStyleSheet(f"""
-            color: {Colors.TEXT_TERTIARY};
-            font-size: 10px;
+            color: {Colors.TEXT_MUTED};
+            font-size: 9px;
             font-style: italic;
-            background-color: {Colors.BG_SURFACE};
-            padding: 6px 8px;
-            border-radius: 4px;
-            border: 1px solid {Colors.BORDER_SUBTLE};
+            background-color: transparent;
         """)
         section.addWidget(info_label)
 
-        # Excluded points list
-        list_label = QLabel("Excluded Points:")
-        list_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 10px; font-weight: 600;")
+        list_label = QLabel("Excluded Points")
+        list_label.setStyleSheet(
+            f"color: {Colors.TEXT_TERTIARY}; font-size: 9px; font-weight: 700; letter-spacing: 0.5px;"
+        )
         section.addWidget(list_label)
 
         self.excluded_points_list = QListWidget()
@@ -481,10 +477,10 @@ class PropertiesPanel(QWidget):
         clear_btn.setStyleSheet(f"""
             QPushButton {{
                 font-size: 10px;
-                padding: 6px 12px;
+                padding: 4px 8px;
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: {Colors.RADIUS_SM};
+                border-radius: 3px;
             }}
             QPushButton:hover {{
                 border-color: {Colors.ERROR};
@@ -499,10 +495,10 @@ class PropertiesPanel(QWidget):
         restore_btn.setStyleSheet(f"""
             QPushButton {{
                 font-size: 10px;
-                padding: 6px 12px;
+                padding: 4px 8px;
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: {Colors.RADIUS_SM};
+                border-radius: 3px;
             }}
             QPushButton:hover {{
                 border-color: {Colors.BORDER_ACCENT};
@@ -591,159 +587,127 @@ class PropertiesPanel(QWidget):
         self.content_layout.addWidget(section)
 
     def _create_about_section(self):
-        """DTU logo, version, author, and acknowledgements - matching HTML concept."""
+        """DTU logo, version, author, and acknowledgements — compact identity layout."""
         import os
         section = CardSection("About", icon_name=Icons.INFO, icon_color=Colors.ACCENT_PRIMARY)
 
-        # ── Logo Area ──
-        logo_container = QWidget()
-        logo_layout = QHBoxLayout(logo_container)
-        logo_layout.setContentsMargins(0, 12, 0, 16)
-        logo_layout.setAlignment(Qt.AlignCenter)
+        # ── Identity row: logo square + name / version / author ──
+        identity_row = QWidget()
+        id_layout = QHBoxLayout(identity_row)
+        id_layout.setContentsMargins(0, 2, 0, 4)
+        id_layout.setSpacing(10)
 
         logo_label = QLabel()
-        # Try to load DTU logo
+        logo_label.setFixedSize(38, 38)
+        logo_label.setAlignment(Qt.AlignCenter)
+        logo_label.setStyleSheet(f"""
+            background-color: {Colors.ACCENT_GHOST};
+            border: 1px solid {Colors.BORDER_ACCENT};
+            border-radius: 3px;
+        """)
         logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "DTU_logo.png")
         if os.path.exists(logo_path):
-            from PyQt5.QtGui import QPixmap
             pixmap = QPixmap(logo_path)
-            metrics = build_screen_metrics(self)
-            scaled = pixmap.scaledToHeight(52 if metrics.compact else 60, Qt.SmoothTransformation)
-            logo_label.setPixmap(scaled)
+            logo_label.setPixmap(pixmap.scaledToHeight(30, Qt.SmoothTransformation))
         else:
             logo_label.setText("DTU")
-            logo_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 24px; font-weight: 700;")
-        logo_label.setAlignment(Qt.AlignCenter)
-        logo_label.setStyleSheet("background: transparent;")
-        logo_layout.addWidget(logo_label)
-        section.addWidget(logo_container)
+            logo_label.setStyleSheet(f"""
+                font-size: 10px; font-weight: 800; color: {Colors.ACCENT_PRIMARY};
+                background-color: {Colors.ACCENT_GHOST};
+                border: 1px solid {Colors.BORDER_ACCENT};
+                border-radius: 3px;
+            """)
+        id_layout.addWidget(logo_label)
 
-        # ── App Info Section ──
-        app_info = QWidget()
-        app_info_layout = QVBoxLayout(app_info)
-        app_info_layout.setContentsMargins(0, 0, 0, 16)
-        app_info_layout.setSpacing(4)
-        app_info_layout.setAlignment(Qt.AlignCenter)
+        text_col = QWidget()
+        text_layout = QVBoxLayout(text_col)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(3)
 
-        # App name
         app_name = QLabel("HeadAnalyser")
-        app_name.setAlignment(Qt.AlignCenter)
         app_name.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 700;
             background: transparent;
         """)
-        app_info_layout.addWidget(app_name)
+        text_layout.addWidget(app_name)
 
-        # Version badge
+        meta_row = QWidget()
+        meta_layout = QHBoxLayout(meta_row)
+        meta_layout.setContentsMargins(0, 0, 0, 0)
+        meta_layout.setSpacing(6)
         version_badge = QLabel("v2.0.0")
-        version_badge.setAlignment(Qt.AlignCenter)
-        version_badge.setFixedWidth(build_screen_metrics(self).about_badge_width)
         version_badge.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
-            font-size: 11px;
+            font-size: 9px;
             font-weight: 600;
             background-color: {Colors.ACCENT_GHOST};
-            padding: 3px 10px;
-            border-radius: 12px;
+            border: 1px solid {Colors.BORDER_ACCENT};
+            padding: 1px 6px;
+            border-radius: 3px;
         """)
-        # Center the badge
-        badge_container = QWidget()
-        badge_layout = QHBoxLayout(badge_container)
-        badge_layout.setContentsMargins(0, 4, 0, 8)
-        badge_layout.setAlignment(Qt.AlignCenter)
-        badge_layout.addWidget(version_badge)
-        app_info_layout.addWidget(badge_container)
-
-        # Author
-        author_label = QLabel("By Oliver B. Lund")
-        author_label.setAlignment(Qt.AlignCenter)
-        author_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 11px; background: transparent;")
-        app_info_layout.addWidget(author_label)
-
-        # Release date
-        release_label = QLabel("Release: February 2025")
-        release_label.setAlignment(Qt.AlignCenter)
-        release_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 10px; font-weight: 500; background: transparent;")
-        app_info_layout.addWidget(release_label)
-
-        section.addWidget(app_info)
+        meta_layout.addWidget(version_badge)
+        author_label = QLabel("Oliver B. Lund")
+        author_label.setStyleSheet(
+            f"color: {Colors.TEXT_TERTIARY}; font-size: 10px; background: transparent;"
+        )
+        meta_layout.addWidget(author_label)
+        meta_layout.addStretch()
+        text_layout.addWidget(meta_row)
+        id_layout.addWidget(text_col)
+        section.addWidget(identity_row)
 
         # ── Separator ──
         section.addSeparator()
 
-        # ── Credits Section ──
-        credits_container = QWidget()
-        credits_layout = QVBoxLayout(credits_container)
-        credits_layout.setContentsMargins(0, 12, 0, 0)
-        credits_layout.setSpacing(8)
-        credits_layout.setAlignment(Qt.AlignCenter)
+        # ── Credits key→value table ──
+        credits_widget = QWidget()
+        credits_layout = QVBoxLayout(credits_widget)
+        credits_layout.setContentsMargins(0, 4, 0, 0)
+        credits_layout.setSpacing(4)
 
-        # Credits title
-        credits_title = QLabel("ACKNOWLEDGEMENTS")
-        credits_title.setAlignment(Qt.AlignCenter)
-        credits_title.setStyleSheet(f"""
-            color: {Colors.TEXT_SECONDARY};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            background: transparent;
-        """)
-        credits_layout.addWidget(credits_title)
+        def _cred_row(key: str, val: str) -> QWidget:
+            row = QWidget()
+            rl = QHBoxLayout(row)
+            rl.setContentsMargins(0, 0, 0, 0)
+            rl.setSpacing(8)
+            k = QLabel(key.upper())
+            k.setFixedWidth(64)
+            k.setAlignment(Qt.AlignTop)
+            k.setStyleSheet(f"""
+                color: {Colors.TEXT_MUTED};
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                background: transparent;
+            """)
+            rl.addWidget(k)
+            v = QLabel(val)
+            v.setWordWrap(True)
+            v.setStyleSheet(
+                f"color: {Colors.TEXT_TERTIARY}; font-size: 9px; background: transparent;"
+            )
+            rl.addWidget(v, 1)
+            return row
 
-        # Credits text with HTML for styling names
-        credits_text = QLabel(
-            f'Calculations originally provided by<br>'
-            f'<span style="color: {Colors.TEXT_SECONDARY}; font-weight: 500;">Anton Bo Bøllingtoft</span> &<br>'
-            f'<span style="color: {Colors.TEXT_SECONDARY}; font-weight: 500;">Grégory Guillaume Lemaire</span><br>'
-            f'from DTU Sustain'
-        )
-        credits_text.setAlignment(Qt.AlignCenter)
-        credits_text.setWordWrap(True)
-        credits_text.setTextFormat(Qt.RichText)
-        credits_text.setStyleSheet(f"""
-            color: {Colors.TEXT_TERTIARY};
-            font-size: 10px;
-            line-height: 1.5;
-            background: transparent;
-        """)
-        credits_layout.addWidget(credits_text)
+        credits_layout.addWidget(_cred_row("Calcs by", "A. Bøllingtoft & G. Lemaire, DTU Sustain"))
+        credits_layout.addWidget(_cred_row("Based on", "Dr. J.F. Devlin, Kansas University"))
+        credits_layout.addWidget(_cred_row("Released", "February 2025"))
+        section.addWidget(credits_widget)
 
-        # Based on work of
-        based_on = QLabel("Based on the work of Dr. J.F. Devlin,<br>Kansas University")
-        based_on.setAlignment(Qt.AlignCenter)
-        based_on.setWordWrap(True)
-        based_on.setTextFormat(Qt.RichText)
-        based_on.setStyleSheet(f"""
-            color: {Colors.TEXT_MUTED};
-            font-size: 9px;
-            font-style: italic;
-            background: transparent;
-        """)
-        credits_layout.addWidget(based_on)
-
-        # DTU Badge
+        # ── DTU badge ──
         dtu_badge = QLabel("Technical University of Denmark")
-        dtu_badge.setAlignment(Qt.AlignCenter)
         dtu_badge.setStyleSheet(f"""
-            color: {Colors.TEXT_PRIMARY};
-            font-size: 10px;
+            color: {Colors.TEXT_SECONDARY};
+            font-size: 9px;
             font-weight: 600;
-            letter-spacing: 0.5px;
-            background-color: rgba(153, 0, 0, 0.15);
-            border: 1px solid rgba(153, 0, 0, 0.3);
-            padding: 6px 12px;
-            border-radius: 6px;
+            background-color: rgba(153, 0, 0, 0.10);
+            border: 1px solid rgba(153, 0, 0, 0.20);
+            padding: 3px 8px;
+            border-radius: 3px;
         """)
-        badge_container2 = QWidget()
-        badge_layout2 = QHBoxLayout(badge_container2)
-        badge_layout2.setContentsMargins(0, 12, 0, 4)
-        badge_layout2.setAlignment(Qt.AlignCenter)
-        badge_layout2.addWidget(dtu_badge)
-        credits_layout.addWidget(badge_container2)
-
-        section.addWidget(credits_container)
+        section.addWidget(dtu_badge)
 
         self.content_layout.addWidget(section)
 

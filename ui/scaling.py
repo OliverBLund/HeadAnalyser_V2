@@ -56,8 +56,17 @@ def _screen_for(widget: QWidget | None = None):
 class ScreenMetrics:
     available_width: int
     available_height: int
+    density: str
     compact: bool
     scale: float
+    font_xs: int
+    font_sm: int
+    font_base: int
+    font_md: int
+    font_lg: int
+    font_xl: int
+    font_title: int
+    font_display: int
     nav_width: int
     nav_button_width: int
     nav_button_height: int
@@ -98,42 +107,56 @@ def build_screen_metrics(widget: QWidget | None = None) -> ScreenMetrics:
         width = int(geo.width())
         height = int(geo.height())
 
+    size_ratio = min(width / _BASE_SCREEN_WIDTH, height / _BASE_SCREEN_HEIGHT)
     compact = width < 1440 or height < 840
-    scale = 1.0 if compact else _clamp_float(
-        min(width / _BASE_SCREEN_WIDTH, height / _BASE_SCREEN_HEIGHT), 1.0, 1.08
-    )
+    density = "dense" if width < 1280 or height < 760 else ("compact" if compact else "regular")
 
-    nav_width = 60 if compact else _clamp_int(68 * scale, 68, 76)
-    nav_button_width = 48 if compact else _clamp_int(52 * scale, 52, 58)
-    nav_button_height = 44 if compact else _clamp_int(48 * scale, 48, 54)
+    # Shared UI scale used for QSS px values. Unlike the previous logic, this
+    # also scales smaller screens down instead of freezing them at desktop size.
+    scale = _clamp_float(size_ratio, 0.90, 1.06)
+    text_scale = _clamp_float(size_ratio, 0.92, 1.03)
+    chrome_scale = _clamp_float(size_ratio, 0.88, 1.04)
 
-    header_height = 44 if compact else _clamp_int(48 * scale, 48, 56)
-    header_button_width = 26 if compact else _clamp_int(28 * scale, 28, 32)
-    header_button_height = 24 if compact else _clamp_int(26 * scale, 26, 30)
-    header_icon_size = 12 if compact else _clamp_int(13 * scale, 13, 16)
-    header_group_height = 26 if compact else _clamp_int(28 * scale, 28, 32)
-    header_logo_box_size = 34 if compact else _clamp_int(38 * scale, 38, 44)
-    header_logo_pixmap_size = 30 if compact else _clamp_int(34 * scale, 34, 40)
-    header_separator_height = 18 if compact else _clamp_int(20 * scale, 20, 24)
+    font_xs = _clamp_int(8.5 * text_scale, 8, 9)
+    font_sm = _clamp_int(9.5 * text_scale, 9, 10)
+    font_base = _clamp_int(10.5 * text_scale, 10, 11)
+    font_md = _clamp_int(11.25 * text_scale, 10, 12)
+    font_lg = _clamp_int(12.0 * text_scale, 11, 13)
+    font_xl = _clamp_int(13.0 * text_scale, 11, 14)
+    font_title = _clamp_int(15.0 * text_scale, 13, 16)
+    font_display = _clamp_int(18.0 * text_scale, 15, 18)
 
-    toolbar_height = 42 if compact else _clamp_int(46 * scale, 46, 52)
-    toolbar_button_size = 30 if compact else _clamp_int(32 * scale, 32, 36)
-    toolbar_control_height = 30 if compact else _clamp_int(32 * scale, 32, 36)
-    toolbar_pill_height = 24 if compact else _clamp_int(26 * scale, 26, 30)
-    toolbar_small_button_width = 26 if compact else _clamp_int(28 * scale, 28, 32)
-    toolbar_small_button_height = 24 if compact else _clamp_int(26 * scale, 26, 30)
-    drawer_header_height = 30 if compact else _clamp_int(32 * scale, 32, 36)
+    nav_width = _clamp_int(64 * chrome_scale, 56, 72)
+    nav_button_width = _clamp_int(50 * chrome_scale, 44, 56)
+    nav_button_height = _clamp_int(46 * chrome_scale, 40, 52)
 
-    properties_width = _clamp_int(width * 0.22, 260 if compact else 280, 340)
-    plot_sidebar_width = _clamp_int(width * 0.24, 260 if compact else 280, 360)
+    header_height = _clamp_int(46 * chrome_scale, 40, 52)
+    header_button_width = _clamp_int(27 * chrome_scale, 24, 31)
+    header_button_height = _clamp_int(25 * chrome_scale, 22, 29)
+    header_icon_size = _clamp_int(12.5 * chrome_scale, 11, 15)
+    header_group_height = _clamp_int(27 * chrome_scale, 24, 31)
+    header_logo_box_size = _clamp_int(36 * chrome_scale, 30, 42)
+    header_logo_pixmap_size = _clamp_int(32 * chrome_scale, 27, 38)
+    header_separator_height = _clamp_int(19 * chrome_scale, 15, 23)
 
-    statusbar_height = 28 if compact else _clamp_int(32 * scale, 32, 36)
-    status_coords_width = 120 if compact else _clamp_int(140 * scale, 140, 180)
-    status_separator_height = 12 if compact else _clamp_int(14 * scale, 14, 18)
+    toolbar_height = _clamp_int(44 * chrome_scale, 38, 50)
+    toolbar_button_size = _clamp_int(31 * chrome_scale, 26, 35)
+    toolbar_control_height = _clamp_int(31 * chrome_scale, 26, 35)
+    toolbar_pill_height = _clamp_int(25 * chrome_scale, 21, 29)
+    toolbar_small_button_width = _clamp_int(27 * chrome_scale, 23, 31)
+    toolbar_small_button_height = _clamp_int(25 * chrome_scale, 21, 29)
+    drawer_header_height = _clamp_int(31 * chrome_scale, 26, 35)
 
-    value_label_width = 92 if compact else _clamp_int(100 * scale, 100, 128)
-    title_header_height = 48 if compact else _clamp_int(52 * scale, 52, 60)
-    about_badge_width = 64 if compact else _clamp_int(70 * scale, 70, 86)
+    properties_width = _clamp_int(width * 0.22, 250, 340)
+    plot_sidebar_width = _clamp_int(width * 0.24, 248, 360)
+
+    statusbar_height = _clamp_int(30 * chrome_scale, 24, 34)
+    status_coords_width = _clamp_int(128 * chrome_scale, 112, 176)
+    status_separator_height = _clamp_int(13 * chrome_scale, 10, 17)
+
+    value_label_width = _clamp_int(96 * chrome_scale, 84, 124)
+    title_header_height = _clamp_int(44 * chrome_scale, 42, 52)
+    about_badge_width = _clamp_int(68 * chrome_scale, 58, 84)
 
     min_window_width = _screen_bound(960, 1180, width)
     min_window_height = _screen_bound(640, 760, height)
@@ -143,8 +166,17 @@ def build_screen_metrics(widget: QWidget | None = None) -> ScreenMetrics:
     return ScreenMetrics(
         available_width=width,
         available_height=height,
+        density=density,
         compact=compact,
         scale=scale,
+        font_xs=font_xs,
+        font_sm=font_sm,
+        font_base=font_base,
+        font_md=font_md,
+        font_lg=font_lg,
+        font_xl=font_xl,
+        font_title=font_title,
+        font_display=font_display,
         nav_width=nav_width,
         nav_button_width=nav_button_width,
         nav_button_height=nav_button_height,

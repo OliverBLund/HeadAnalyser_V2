@@ -139,15 +139,15 @@ class StyleSheet:
             QTabBar::tab {{
                 background-color: transparent;
                 color: {Colors.TEXT_TERTIARY};
-                padding: 6px 22px 6px 14px;
-                margin: 0px 2px 0px 0px;
+                padding: 3px 18px 3px 10px;
+                margin: 0px 1px 0px 0px;
                 border: none;
                 border-bottom: 2px solid transparent;
-                border-radius: {Colors.RADIUS_MD} {Colors.RADIUS_MD} 0px 0px;
+                border-radius: 4px 4px 0px 0px;
                 font-size: 11px;
                 font-weight: 600;
-                min-height: 28px;
-                min-width: 90px;
+                min-height: 26px;
+                min-width: 68px;
             }}
 
             QTabBar::tab:selected {{
@@ -576,41 +576,39 @@ class StyleSheet:
 
     @staticmethod
     def get_range_slider_style():
-        """Enhanced style for range sliders."""
+        """Range slider style — flat groove, compact accent handle."""
         return StyleSheet._scaled(f"""
+            QSlider {{
+                background-color: transparent;
+            }}
+
             QSlider::groove:horizontal {{
-                height: 6px;
-                background-color: {Colors.BG_SURFACE};
-                border: 1px solid {Colors.BORDER_DEFAULT};
-                border-radius: 3px;
+                height: 4px;
+                background-color: {Colors.BORDER_MEDIUM};
+                border: none;
+                border-radius: 2px;
             }}
 
             QSlider::handle:horizontal {{
-                width: 16px;
-                height: 16px;
-                margin: -6px 0;
-                background-color: {Colors.TEXT_PRIMARY};
-                border: 2px solid {Colors.ACCENT_PRIMARY};
-                border-radius: 9px;
+                width: 12px;
+                height: 12px;
+                margin: -4px 0;
+                background-color: {Colors.ACCENT_PRIMARY};
+                border: none;
+                border-radius: 2px;
             }}
 
             QSlider::handle:horizontal:hover {{
-                background-color: {Colors.TEXT_PRIMARY};
-                width: 18px;
-                height: 18px;
-                margin: -7px 0;
-                border: 2px solid {Colors.ACCENT_BRIGHT};
-                border-radius: 10px;
+                background-color: {Colors.ACCENT_BRIGHT};
             }}
 
             QSlider::handle:horizontal:pressed {{
-                background-color: {Colors.ACCENT_PRIMARY};
-                border-color: {Colors.ACCENT_PRIMARY};
+                background-color: {Colors.ACCENT_PRESSED};
             }}
 
             QSlider::sub-page:horizontal {{
-                background: {Colors.GRADIENT_ACCENT};
-                border-radius: 3px;
+                background-color: {Colors.ACCENT_MUTED};
+                border-radius: 2px;
             }}
         """)
 
@@ -896,12 +894,14 @@ class StyleSheet:
             QComboBox {{
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: 6px;
-                padding: 4px 10px;
-                padding-right: 28px;
-                font-size: 11px;
+                border-radius: 4px;
+                padding: 2px 8px;
+                padding-right: 20px;
+                font-size: 10px;
                 color: {Colors.TEXT_PRIMARY};
                 font-weight: 500;
+                min-height: {metrics.toolbar_pill_height}px;
+                max-height: {metrics.toolbar_pill_height}px;
             }}
             QComboBox:hover {{
                 border-color: {Colors.ACCENT_PRIMARY};
@@ -914,13 +914,13 @@ class StyleSheet:
                 subcontrol-position: center right;
                 border: none;
                 background: transparent;
-                width: 24px;
+                width: 18px;
             }}
             QComboBox::down-arrow {{
                 image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid {Colors.TEXT_MUTED};
+                border-left: 3px solid transparent;
+                border-right: 3px solid transparent;
+                border-top: 4px solid {Colors.TEXT_MUTED};
                 width: 0; height: 0;
             }}
             QComboBox QAbstractItemView {{

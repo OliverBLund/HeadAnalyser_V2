@@ -38,6 +38,7 @@ class GradientCalculation:
             self._progress_update_min_interval_s = 0.08
         self.triu_indices = np.triu_indices(3, k=1)
         self.progress_window = None
+        self._progress_dialog_kind = ""
         self.start_time = 0.0
         self._progress_max_value = 0
         self._progress_last_ui_t = 0.0
@@ -112,6 +113,37 @@ class GradientCalculation:
         if parent is None:
             parent = self.app_ref if isinstance(self.app_ref, QWidget) else None
 
+        dataset_name = str(getattr(self.app_ref, "dataset_name", getattr(self.app_ref, "name", "active")))
+        try:
+            from ui.loading_dialog import LoadingDialog
+
+            dlg = LoadingDialog(
+                "Calculating Gradients",
+                "Building triangle combinations and hydraulic-gradient results",
+                parent,
+                cancellable=False,
+            )
+            dlg.update_progress(
+                0,
+                100,
+                "Preparing gradient mesh",
+                "Enumerating triangle candidates from the active dataset.",
+                count_label="0%",
+                activity_label=f"Dataset: {dataset_name}",
+            )
+            dlg.set_activity("This calculation updates the plot, statistics, and report data when complete.")
+            dlg.open()
+            self.progress_window = dlg
+            self._progress_dialog_kind = "loading"
+            self.start_time = time.monotonic()
+            self._progress_max_value = int(max_value)
+            self._progress_last_ui_t = self.start_time
+            app.processEvents()
+            return
+        except Exception:
+            self.progress_window = None
+            self._progress_dialog_kind = ""
+
         try:
             dlg = QProgressDialog("0% Complete\nTime remaining: calculating...", "", 0, 100, parent)
             dlg.setWindowTitle("Processing...")
@@ -122,12 +154,14 @@ class GradientCalculation:
             dlg.setCancelButton(None)
             dlg.setValue(0)
             self.progress_window = dlg
+            self._progress_dialog_kind = "qt"
             self.start_time = time.monotonic()
             self._progress_max_value = int(max_value)
             self._progress_last_ui_t = self.start_time
             app.processEvents()
         except Exception:
             self.progress_window = None
+            self._progress_dialog_kind = ""
 
     def update_progress_bar(self, value: int, max_value: int = None):
         dlg = self.progress_window
@@ -161,8 +195,19 @@ class GradientCalculation:
         rem_s = int(remaining % 60)
 
         try:
-            dlg.setLabelText(f"{pct:.0f}% Complete\nTime remaining: {rem_m}m {rem_s}s")
-            dlg.setValue(int(min(100, max(0, round(pct)))))
+            percent = int(min(100, max(0, round(pct))))
+            if getattr(self, "_progress_dialog_kind", "") == "loading" and hasattr(dlg, "update_progress"):
+                dlg.update_progress(
+                    percent,
+                    100,
+                    "Computing gradients",
+                    f"Processed {value:,} of {max_value:,} triangle candidates.",
+                    count_label=f"{percent}%",
+                    activity_label=f"Estimated remaining: {rem_m}m {rem_s}s",
+                )
+            else:
+                dlg.setLabelText(f"{pct:.0f}% Complete\nTime remaining: {rem_m}m {rem_s}s")
+                dlg.setValue(percent)
             app = QApplication.instance()
             if app is not None:
                 app.processEvents()
@@ -175,11 +220,24 @@ class GradientCalculation:
         if dlg is None:
             return
         try:
-            dlg.close()
+            if getattr(self, "_progress_dialog_kind", "") == "loading" and hasattr(dlg, "mark_finished"):
+                dlg.mark_finished("Gradient calculation complete", "Gradient results are ready.", ok=True)
+                try:
+                    from PyQt5.QtWidgets import QApplication
+
+                    app = QApplication.instance()
+                    if app is not None:
+                        app.processEvents()
+                except Exception:
+                    pass
+                dlg.accept()
+            else:
+                dlg.close()
             dlg.deleteLater()
         except Exception:
             pass
         finally:
+            self._progress_dialog_kind = ""
             self._progress_max_value = 0
             self._progress_last_ui_t = 0.0
 

@@ -433,8 +433,8 @@ class CardSection(QWidget):
         self._card.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.BG_SURFACE};
-                border: 1px solid {Colors.BORDER_SUBTLE};
-                border-radius: 8px;
+                border: 1px solid {Colors.BORDER_DEFAULT};
+                border-radius: 4px;
             }}
         """)
         card_layout = QVBoxLayout(self._card)
@@ -443,43 +443,29 @@ class CardSection(QWidget):
 
         # Header (clickable)
         self._header = QWidget()
+        self._header.setObjectName("card_section_header")
+        self._header.setFixedHeight(28)
         self._header.setCursor(Qt.PointingHandCursor)
         self._header.mousePressEvent = lambda e: self.toggle_section()
         header_layout = QHBoxLayout(self._header)
-        header_layout.setContentsMargins(10 if metrics.compact else 12, 8 if metrics.compact else 10, 10 if metrics.compact else 12, 8 if metrics.compact else 10)
-        header_layout.setSpacing(6 if metrics.compact else 8)
+        header_layout.setContentsMargins(10, 0, 10, 0)
+        header_layout.setSpacing(8)
 
-        # Icon box
-        if icon_name:
-            icon_box = QFrame()
-            icon_box_size = 18 if metrics.compact else 20
-            icon_box.setFixedSize(icon_box_size, icon_box_size)
-            # Determine background color based on icon_color
-            bg_color = self._get_icon_bg_color()
-            icon_box.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {bg_color};
-                    border-radius: 5px;
-                    border: none;
-                }}
-            """)
-            icon_box_layout = QHBoxLayout(icon_box)
-            icon_box_layout.setContentsMargins(0, 0, 0, 0)
-            icon_lbl = QLabel()
-            icon_edge = 9 if metrics.compact else 10
-            icon_lbl.setPixmap(icon(icon_name, color=self._icon_color).pixmap(QSize(icon_edge, icon_edge)))
-            icon_lbl.setAlignment(Qt.AlignCenter)
-            icon_lbl.setStyleSheet("background-color: transparent;")
-            icon_box_layout.addWidget(icon_lbl)
-            header_layout.addWidget(icon_box)
+        # 2px accent bar (colour-coded by section type)
+        accent_bar = QFrame()
+        accent_bar.setFixedSize(2, 12)
+        accent_bar.setStyleSheet(
+            f"background-color: {self._icon_color}; border-radius: 1px; border: none;"
+        )
+        header_layout.addWidget(accent_bar)
 
         # Title
         title_label = QLabel(title.upper())
         title_label.setStyleSheet(f"""
             color: {Colors.TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
             background-color: transparent;
         """)
         header_layout.addWidget(title_label)
@@ -491,16 +477,18 @@ class CardSection(QWidget):
         self._chevron.setStyleSheet(f"color: {Colors.TEXT_MUTED}; background-color: transparent;")
         header_layout.addWidget(self._chevron)
 
-        # Hover effect for header
         self._header.setStyleSheet(f"""
-            QWidget {{
+            QWidget#card_section_header {{
+                background-color: {Colors.BG_ELEVATED};
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }}
+            QWidget#card_section_header:hover {{
+                background-color: {Colors.BG_HOVER};
+            }}
+            QWidget#card_section_header QLabel {{
                 background-color: transparent;
                 border: none;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-            }}
-            QWidget:hover {{
-                background-color: {Colors.BG_HOVER};
             }}
         """)
 
@@ -510,8 +498,8 @@ class CardSection(QWidget):
         self._body = QWidget()
         self._body.setObjectName("cardBody")
         self._body_layout = QVBoxLayout(self._body)
-        self._body_layout.setContentsMargins(10 if metrics.compact else 12, 8 if metrics.compact else 8, 10 if metrics.compact else 12, 10 if metrics.compact else 12)
-        self._body_layout.setSpacing(0)
+        self._body_layout.setContentsMargins(10, 8, 10, 10)
+        self._body_layout.setSpacing(8)
         self._body.setStyleSheet(f"""
             QWidget#cardBody {{
                 background-color: transparent;
@@ -521,18 +509,10 @@ class CardSection(QWidget):
                 background-color: transparent;
                 border: none;
             }}
-            QWidget#cardBody QWidget {{
-                background-color: transparent;
-                border: none;
-            }}
         """)
         card_layout.addWidget(self._body)
 
         main_layout.addWidget(self._card)
-
-    def _get_icon_bg_color(self):
-        """Get a semi-transparent background color based on icon color."""
-        return Colors.tint_surface(self._icon_color or Colors.ACCENT_PRIMARY)
 
     def _update_chevron(self):
         chevron_icon = Icons.CHEVRON_DOWN if self.is_expanded else Icons.CHEVRON_RIGHT

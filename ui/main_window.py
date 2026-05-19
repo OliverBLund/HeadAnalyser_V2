@@ -26,6 +26,7 @@ from .properties_panel import PropertiesPanel
 from .plot_page import PlotPage
 from .map_widget import MapWidget
 from .statistics_panel import StatisticsPanel
+from .reporting_view import ReportView
 from .welcome_widget import WelcomeWidget
 from .plot_types import normalize_plot_type, to_toolbar_label
 
@@ -503,6 +504,12 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                     try:
                         if hasattr(dataset, "page_stack") and dataset.page_stack.currentIndex() == 2:
                             dataset.statistics_panel.update_statistics(self)
+                        elif (
+                            hasattr(dataset, "page_stack")
+                            and dataset.page_stack.currentIndex() == 3
+                            and hasattr(dataset, "report_view")
+                        ):
+                            dataset.report_view.refresh_from_main_window()
                     except Exception:
                         pass
 
@@ -1027,6 +1034,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                 dataset.map_widget.apply_theme()
             if hasattr(dataset, "statistics_panel"):
                 dataset.statistics_panel.apply_theme()
+            if hasattr(dataset, "report_view"):
+                dataset.report_view.apply_theme()
 
         if persist:
             settings = self._recent_settings()
@@ -1045,6 +1054,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                 current_page = 0
             if current_page == 2 and hasattr(active_dataset, "statistics_panel"):
                 active_dataset.statistics_panel.update_statistics(self)
+            elif current_page == 3 and hasattr(active_dataset, "report_view"):
+                active_dataset.report_view.refresh_from_main_window()
 
     @staticmethod
     def _normalize_recent_path(path: str) -> str:
@@ -1390,6 +1401,12 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         for dataset in self.datasets.values():
             if hasattr(dataset, "plot_page"):
                 dataset.plot_page.apply_theme()
+            if hasattr(dataset, "map_widget"):
+                dataset.map_widget.apply_theme()
+            if hasattr(dataset, "statistics_panel"):
+                dataset.statistics_panel.apply_theme()
+            if hasattr(dataset, "report_view"):
+                dataset.report_view.apply_theme()
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -3074,13 +3091,15 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         if dataset is None or not hasattr(dataset, 'page_stack'):
             return
 
-        page_map = {"plot": 0, "map": 1, "stats": 2}
+        page_map = {"plot": 0, "map": 1, "stats": 2, "report": 3}
         dataset.page_stack.setCurrentIndex(page_map.get(page, 0))
 
         if page == "map":
             self._update_map_view(force=True)
         elif page == "stats":
             dataset.statistics_panel.update_statistics(self)
+        elif page == "report" and hasattr(dataset, "report_view"):
+            dataset.report_view.refresh_from_main_window()
 
     def on_open_file(self):
         """Handle file open action."""
@@ -3112,51 +3131,12 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
 
     def on_export_report(self):
         dataset = self.get_active_dataset()
-        if dataset is None or self.data is None:
-            QMessageBox.warning(self, "No Data", "No data to include in report.")
+        if dataset is None or not hasattr(dataset, "page_stack"):
+            QMessageBox.warning(self, "No Data", "Open a dataset before using the report composer.")
             return
 
-        from ui.dialogs.report_generator import ReportSettingsDialog
-        from ui.report_generator import PdfReportGenerator
-        from PyQt5.QtWidgets import QProgressDialog, QApplication
-
-        dialog = ReportSettingsDialog(self, parent=self)
-        try:
-            if dialog.exec_() != QDialog.Accepted:
-                return
-            settings = dialog.get_settings()
-        finally:
-            dialog.deleteLater()
-
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export PDF Report", "", "PDF Document (*.pdf)"
-        )
-        if not file_path:
-            return
-
-        progress = QProgressDialog("Generating report...", "Cancel", 0, 100, self)
-        progress.setWindowTitle("Generating Report")
-        progress.setWindowModality(Qt.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
-
-        def _progress_cb(fraction, message):
-            if message:
-                progress.setLabelText(message)
-            progress.setValue(int(max(0, min(1, fraction)) * 100))
-            QApplication.processEvents()
-            if progress.wasCanceled():
-                raise RuntimeError("Report generation canceled.")
-
-        try:
-            generator = PdfReportGenerator(self)
-            generator.generate(settings, file_path, _progress_cb)
-            progress.setValue(100)
-            QMessageBox.information(self, "Report Export", f"Report exported to {file_path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Report Export Error", str(e))
-        finally:
-            progress.close()
+        self.nav_sidebar.set_active_page("report")
+        self.on_page_changed("report")
 
     def on_settings(self):
         from .dialogs.plot_settings import PlotSettingsDialog
@@ -3563,6 +3543,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             self._update_map_view(force=False)
             if current == 2:
                 dataset.statistics_panel.update_statistics(self)
+            elif current == 3 and hasattr(dataset, "report_view"):
+                dataset.report_view.refresh_from_main_window()
             try:
                 self._perf_log(
                     f"[perf] data_views dataset={getattr(dataset, 'name', 'unknown')} "
@@ -3824,6 +3806,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         plot_page = PlotPage(self)
         map_widget = MapWidget(self)
         statistics_panel = StatisticsPanel(self)
+        report_view = ReportView(self)
 
         # Connect statistics panel buttons
         statistics_panel.open_inspector_requested.connect(
@@ -3894,11 +3877,13 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         page_stack.addWidget(plot_page)
         page_stack.addWidget(map_widget)
         page_stack.addWidget(statistics_panel)
+        page_stack.addWidget(report_view)
 
         # Store references in dataset for later access
         dataset.plot_page = plot_page
         dataset.map_widget = map_widget
         dataset.statistics_panel = statistics_panel
+        dataset.report_view = report_view
         dataset.page_stack = page_stack
         # Allow PlotWidget to tag emitted transects with this dataset context.
         try:
@@ -4046,7 +4031,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
 
         # Update navigation to show correct page for this dataset's view
         current_page = dataset.page_stack.currentIndex()
-        self.nav_sidebar.set_active_page(["plot", "map", "stats"][current_page])
+        page_names = ["plot", "map", "stats", "report"]
+        self.nav_sidebar.set_active_page(page_names[current_page] if 0 <= current_page < len(page_names) else "plot")
 
         # Update properties panel to reflect this dataset's settings
         self.properties_panel.update_from_main_window()
@@ -4139,6 +4125,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             current = dataset.page_stack.currentIndex()
             if current == 2:
                 dataset.statistics_panel.update_statistics(self)
+            elif current == 3 and hasattr(dataset, "report_view"):
+                dataset.report_view.refresh_from_main_window()
 
     def closeEvent(self, event):
         try:

@@ -16,6 +16,7 @@ ICON_COLORS = {
     "plot": {"active": "#60a5fa", "glow": "rgba(96, 165, 250, 0.08)"},
     "map": {"active": "#4ade80", "glow": "rgba(74, 222, 128, 0.08)"},
     "stats": {"active": "#fbbf24", "glow": "rgba(251, 191, 36, 0.08)"},
+    "report": {"active": "#38bdf8", "glow": "rgba(56, 189, 248, 0.08)"},
 }
 
 
@@ -133,6 +134,26 @@ class NavButton(QPushButton):
             painter.drawRect(int(ix - 2), int(iy - 6), bar_w, 16)
             painter.drawRect(int(ix + 4), int(iy - 2), bar_w, 12)
 
+        elif self.icon_type == "report":
+            # Document icon
+            page_w = int(s * 1.55)
+            page_h = int(s * 2.1)
+            left = int(ix - page_w / 2)
+            top = int(iy - page_h / 2)
+            fold = max(4, int(s * 0.45))
+            path = QPainterPath()
+            path.moveTo(left, top)
+            path.lineTo(left + page_w - fold, top)
+            path.lineTo(left + page_w, top + fold)
+            path.lineTo(left + page_w, top + page_h)
+            path.lineTo(left, top + page_h)
+            path.closeSubpath()
+            painter.drawPath(path)
+            painter.drawLine(left + page_w - fold, top, left + page_w - fold, top + fold)
+            painter.drawLine(left + page_w - fold, top + fold, left + page_w, top + fold)
+            painter.drawLine(left + 4, top + 8, left + page_w - 4, top + 8)
+            painter.drawLine(left + 4, top + 13, left + page_w - 5, top + 13)
+
 
 class NavigationSidebar(QWidget):
     """Left navigation sidebar with colored icon buttons."""
@@ -158,6 +179,7 @@ class NavigationSidebar(QWidget):
             ("plot", "Plot"),
             ("map", "Map"),
             ("stats", "Statistics"),
+            ("report", "Report"),
         ]
 
         for icon_type, text in pages:

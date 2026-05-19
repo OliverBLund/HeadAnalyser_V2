@@ -13,6 +13,7 @@ from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject, QUrl
 
 from styles.colors import Colors
+from ui.scaling import build_screen_metrics
 
 
 class WelcomeBridge(QObject):
@@ -179,6 +180,7 @@ class WelcomeWidget(QWidget):
 
     def _build_html(self, particles_js: str, app_logo_html: str, dtu_logo_html: str, recent_sessions_html: str) -> str:
         """Build the complete welcome HTML string."""
+        metrics = build_screen_metrics(self)
         is_dark = Colors.is_dark()
         grid_line = Colors.rgba(Colors.ACCENT_PRIMARY, 0.03 if is_dark else 0.045)
         vignette_mid = Colors.rgba(Colors.BG_APP, 0.30 if is_dark else 0.18)
@@ -200,6 +202,64 @@ class WelcomeWidget(QWidget):
             Colors.INFO,
             Colors.ACCENT_PRESSED,
         ])
+
+        size_ratio = min(
+            metrics.available_width / 1600.0,
+            metrics.available_height / 900.0,
+        )
+        welcome_scale = max(0.80, min(1.0, size_ratio))
+
+        def fit(base: float, low: int, high: int | None = None) -> int:
+            if high is None:
+                high = int(round(base))
+            return max(low, min(high, int(round(base * welcome_scale))))
+
+        overlay_top_align = metrics.available_height < 700
+        overlay_pad_y = 18 if metrics.density == "dense" else (24 if metrics.compact else 40)
+        overlay_pad_x = 12 if metrics.density == "dense" else (20 if metrics.compact else 40)
+        overlay_pad_bottom = 28 if metrics.density == "dense" else (96 if metrics.compact else 40)
+
+        title_gap = fit(28, 14, 28)
+        logo_height = fit(260, 150, 260)
+        logo_max_width = fit(980, 520, 980)
+        logo_overlap = fit(42, 16, 42)
+        title_font = fit(42, 30, 42)
+        tagline_font = fit(13, 11, 13)
+        badge_font = fit(10, 8, 10)
+        badge_radius = fit(9, 7, 9)
+        badge_pad_y = fit(3, 2, 3)
+        badge_pad_x = fit(12, 8, 12)
+        card_left_width = fit(280, 224, 280)
+        card_right_width = fit(340, 272, 340)
+        card_gap = fit(10, 6, 10)
+        card_padding_y = fit(16, 12, 16)
+        card_padding_x = fit(18, 12, 18)
+        card_radius = fit(10, 8, 10)
+        card_icon_size = fit(28, 24, 28)
+        card_icon_radius = fit(6, 5, 6)
+        card_icon_edge = fit(14, 12, 14)
+        card_title_font = fit(11, 10, 11)
+        button_font = fit(12, 10, 12)
+        button_pad_y_primary = fit(10, 8, 10)
+        button_pad_y_secondary = fit(9, 8, 9)
+        button_pad_x = fit(16, 12, 16)
+        button_radius = fit(7, 6, 7)
+        button_icon_width = fit(14, 12, 14)
+        recent_name_font = fit(12, 10, 12)
+        recent_meta_font = fit(10, 8, 10)
+        recent_item_pad_y = fit(8, 7, 8)
+        recent_item_pad_x = fit(10, 8, 10)
+        empty_font = fit(11, 10, 11)
+        shortcut_font = fit(11, 10, 11)
+        kbd_font = fit(9, 8, 9)
+        changelog_tag_font = fit(8, 7, 8)
+        changelog_text_font = fit(11, 10, 11)
+        footer_logo_size = fit(65, 46, 65)
+        footer_name_font = fit(13, 11, 13)
+        footer_sub_font = fit(10, 8, 10)
+        footer_offset_x = fit(30, 12, 30)
+        footer_offset_y = fit(25, 12, 25)
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -248,16 +308,19 @@ class WelcomeWidget(QWidget):
     position: fixed; top: 0; left: 0;
     width: 100%; height: 100%; z-index: 10;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    pointer-events: none; padding: 40px;
+    align-items: center; justify-content: {"flex-start" if overlay_top_align else "center"};
+    pointer-events: none;
+    padding: {overlay_pad_y}px {overlay_pad_x}px {overlay_pad_bottom}px;
+    overflow-y: auto;
+    overflow-x: hidden;
   }}
-  .title-section {{ text-align: center; margin-bottom: 28px; }}
+  .title-section {{ text-align: center; margin-bottom: {title_gap}px; }}
   .app-logo {{
     display: block;
     width: auto;
-    height: clamp(225px, 32.5vh, 400px);
-    max-width: min(980px, 95vw);
-    margin: 0 auto -42px auto;
+    height: {logo_height}px;
+    max-width: min({logo_max_width}px, 95vw);
+    margin: 0 auto -{logo_overlap}px auto;
     object-fit: contain;
     object-position: center 76%;
     opacity: 0;
@@ -271,46 +334,48 @@ class WelcomeWidget(QWidget):
     transform: translateY(0);
   }}
   .title-section h1 {{
-    font-size: 42px; font-weight: 800; color: {Colors.TEXT_PRIMARY};
+    font-size: {title_font}px; font-weight: 800; color: {Colors.TEXT_PRIMARY};
     letter-spacing: -1px; margin: 0 0 2px 0; line-height: 1.1;
   }}
   .title-section h1 span {{ color: {Colors.ACCENT_PRIMARY}; }}
   .title-section .tagline {{
-    font-size: 13px; font-weight: 400; color: {Colors.TEXT_TERTIARY};
+    font-size: {tagline_font}px; font-weight: 400; color: {Colors.TEXT_TERTIARY};
     letter-spacing: 0.3px; margin-top: 6px;
   }}
   .version-badge {{
     display: inline-block; margin-top: 10px;
-    font-size: 10px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};
+    font-size: {badge_font}px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};
     background: {Colors.ACCENT_GHOST};
     border: 1px solid {Colors.BORDER_ACCENT};
-    border-radius: 9px; padding: 3px 12px;
+    border-radius: {badge_radius}px; padding: {badge_pad_y}px {badge_pad_x}px;
     letter-spacing: 0.8px; text-transform: uppercase;
   }}
   .card-grid {{
     display: grid;
-    grid-template-columns: 280px 340px;
+    grid-template-columns: {card_left_width}px {card_right_width}px;
     grid-template-rows: auto auto;
-    gap: 10px; max-width: 640px;
+    gap: {card_gap}px;
+    width: {card_left_width + card_right_width + card_gap}px;
+    max-width: {card_left_width + card_right_width + card_gap}px;
   }}
   .glass-card {{
     background: {glass_bg};
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid {glass_border};
-    border-radius: 10px; padding: 16px 18px;
+    border-radius: {card_radius}px; padding: {card_padding_y}px {card_padding_x}px;
     box-shadow: {glass_shadow};
   }}
   .card-header {{
     display: flex; align-items: center;
-    gap: 8px; margin-bottom: 12px;
+    gap: {fit(8, 7, 8)}px; margin-bottom: {fit(12, 10, 12)}px;
   }}
   .card-icon {{
-    width: 28px; height: 28px; border-radius: 6px;
+    width: {card_icon_size}px; height: {card_icon_size}px; border-radius: {card_icon_radius}px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }}
-  .card-icon svg {{ width: 14px; height: 14px; }}
+  .card-icon svg {{ width: {card_icon_edge}px; height: {card_icon_edge}px; }}
   .card-icon.accent {{ background: {Colors.ACCENT_GHOST}; }}
   .card-icon.accent svg {{ stroke: {Colors.ACCENT_PRIMARY}; fill: none; }}
   .card-icon.blue {{ background: {Colors.INFO_BG}; }}
@@ -320,16 +385,16 @@ class WelcomeWidget(QWidget):
   .card-icon.amber {{ background: {Colors.WARNING_BG}; }}
   .card-icon.amber svg {{ stroke: {Colors.WARNING}; fill: none; }}
   .card-title {{
-    font-size: 11px; font-weight: 700; color: {Colors.TEXT_PRIMARY};
+    font-size: {card_title_font}px; font-weight: 700; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.4px; text-transform: uppercase;
   }}
   .actions-card {{ grid-column: 1; grid-row: 1; }}
   .btn-primary {{
-    display: block; width: 100%; padding: 10px 16px;
-    font-family: inherit; font-size: 12px; font-weight: 600;
+    display: block; width: 100%; padding: {button_pad_y_primary}px {button_pad_x}px;
+    font-family: inherit; font-size: {button_font}px; font-weight: 600;
     color: {Colors.TEXT_INVERSE};
     background: linear-gradient(135deg, {Colors.ACCENT_PRESSED}, {Colors.ACCENT_PRIMARY});
-    border: none; border-radius: 7px; cursor: pointer;
+    border: none; border-radius: {button_radius}px; cursor: pointer;
     pointer-events: auto; text-align: left;
     transition: transform 0.12s, box-shadow 0.12s;
     box-shadow: 0 2px 8px {Colors.ACCENT_SHADOW};
@@ -339,12 +404,12 @@ class WelcomeWidget(QWidget):
     box-shadow: 0 4px 16px {Colors.ACCENT_SHADOW};
   }}
   .btn-secondary {{
-    display: block; width: 100%; padding: 9px 16px;
-    font-family: inherit; font-size: 12px; font-weight: 500;
+    display: block; width: 100%; padding: {button_pad_y_secondary}px {button_pad_x}px;
+    font-family: inherit; font-size: {button_font}px; font-weight: 500;
     color: {Colors.TEXT_SECONDARY};
     background: {secondary_bg};
     border: 1px solid {secondary_border};
-    border-radius: 7px; cursor: pointer;
+    border-radius: {button_radius}px; cursor: pointer;
     pointer-events: auto; text-align: left;
     margin-top: 6px;
     transition: background 0.12s, color 0.12s;
@@ -353,14 +418,14 @@ class WelcomeWidget(QWidget):
     background: {Colors.ACCENT_GHOST}; color: {Colors.ACCENT_BRIGHT};
   }}
   .btn-icon {{
-    display: inline-block; width: 14px;
+    display: inline-block; width: {button_icon_width}px;
     margin-right: 8px; vertical-align: -1px; opacity: 0.7;
   }}
   .recent-card {{ grid-column: 2; grid-row: 1 / 3; }}
   .recent-list {{ list-style: none; }}
   .recent-item {{
     display: flex; align-items: flex-start; gap: 10px;
-    padding: 8px 10px; border-radius: 6px;
+    padding: {recent_item_pad_y}px {recent_item_pad_x}px; border-radius: {card_icon_radius}px;
     cursor: pointer; pointer-events: auto;
     transition: background 0.12s; margin-bottom: 2px;
   }}
@@ -373,15 +438,15 @@ class WelcomeWidget(QWidget):
   .recent-item:hover .recent-dot {{ opacity: 1; }}
   .recent-info {{ flex: 1; min-width: 0; }}
   .recent-name {{
-    font-size: 12px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: {recent_name_font}px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
     white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; line-height: 1.3;
   }}
-  .recent-meta {{ font-size: 10px; color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
+  .recent-meta {{ font-size: {recent_meta_font}px; color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
   .recent-meta span {{ color: {Colors.TEXT_TERTIARY}; }}
   .empty-recent {{
     text-align: center; padding: 24px 0;
-    color: {Colors.TEXT_MUTED}; font-size: 11px;
+    color: {Colors.TEXT_MUTED}; font-size: {empty_font}px;
   }}
   .tips-card {{ grid-column: 1; grid-row: 2; }}
   .shortcut-list {{ list-style: none; }}
@@ -389,11 +454,11 @@ class WelcomeWidget(QWidget):
     display: flex; align-items: center;
     justify-content: space-between; padding: 4px 0;
   }}
-  .shortcut-label {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; }}
+  .shortcut-label {{ font-size: {shortcut_font}px; color: {Colors.TEXT_SECONDARY}; }}
   .shortcut-keys {{ display: flex; gap: 3px; }}
   .kbd {{
     font-family: 'SF Mono', 'Consolas', monospace;
-    font-size: 9px; font-weight: 600; color: {Colors.TEXT_SECONDARY};
+    font-size: {kbd_font}px; font-weight: 600; color: {Colors.TEXT_SECONDARY};
     background: {kbd_bg};
     border: 1px solid {kbd_border};
     border-radius: 3px; padding: 2px 5px; line-height: 1.3;
@@ -409,7 +474,7 @@ class WelcomeWidget(QWidget):
     min-width: 0;
   }}
   .changelog-tag {{
-    flex-shrink: 0; font-size: 8px; font-weight: 700;
+    flex-shrink: 0; font-size: {changelog_tag_font}px; font-weight: 700;
     letter-spacing: 0.5px; text-transform: uppercase;
     padding: 2px 5px; border-radius: 3px;
     margin-top: 1px; line-height: 1.3;
@@ -417,13 +482,13 @@ class WelcomeWidget(QWidget):
   .tag-new {{ background: {Colors.SUCCESS_BG}; color: {Colors.SUCCESS}; }}
   .tag-improved {{ background: {Colors.INFO_BG}; color: {Colors.INFO}; }}
   .tag-fixed {{ background: {Colors.WARNING_BG}; color: {Colors.WARNING}; }}
-  .changelog-text {{ font-size: 11px; color: {Colors.TEXT_SECONDARY}; line-height: 1.4; }}
+  .changelog-text {{ font-size: {changelog_text_font}px; color: {Colors.TEXT_SECONDARY}; line-height: 1.4; }}
   .dtu-logo {{
     position: fixed;
-    bottom: 25px;
-    left: 30px;
-    max-width: 65px;
-    max-height: 65px;
+    bottom: {footer_offset_y}px;
+    left: {footer_offset_x}px;
+    max-width: {footer_logo_size}px;
+    max-height: {footer_logo_size}px;
     object-fit: contain;
     opacity: 0.9;
     z-index: 100;
@@ -431,156 +496,20 @@ class WelcomeWidget(QWidget):
   }}
   .author-credit {{
     position: fixed;
-    bottom: 25px;
-    right: 30px;
+    bottom: {footer_offset_y}px;
+    right: {footer_offset_x}px;
     text-align: right;
     z-index: 100;
     pointer-events: none;
   }}
   .author-name {{
-    font-size: 13px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
+    font-size: {footer_name_font}px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
     letter-spacing: 0.5px;
     text-shadow: none;
   }}
   .author-sub {{
-    font-size: 10px; color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
+    font-size: {footer_sub_font}px; color: {Colors.ACCENT_PRIMARY}; margin-top: 1px;
     font-weight: 500;
-  }}
-  @media (max-width: 1180px), (max-height: 860px) {{
-    .welcome-overlay {{
-      justify-content: center;
-      padding: 24px 20px 110px;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }}
-    .title-section {{
-      margin-bottom: 18px;
-    }}
-    .app-logo {{
-      height: clamp(170px, 24vh, 240px);
-      max-width: min(760px, 88vw);
-      margin: 0 auto -24px auto;
-    }}
-    .title-section h1 {{
-      font-size: clamp(30px, 4vw, 36px);
-    }}
-    .title-section .tagline {{
-      font-size: 12px;
-    }}
-    .version-badge {{
-      margin-top: 8px;
-      font-size: 9px;
-      padding: 3px 10px;
-    }}
-    .card-grid {{
-      grid-template-columns: 252px 308px;
-      grid-template-rows: auto auto;
-      width: 570px;
-      max-width: 570px;
-      gap: 8px;
-    }}
-    .glass-card {{
-      padding: 14px 16px;
-    }}
-    .dtu-logo {{
-      bottom: 18px;
-      left: 20px;
-      max-width: 54px;
-      max-height: 54px;
-    }}
-    .author-credit {{
-      bottom: 18px;
-      right: 20px;
-    }}
-    .author-name {{
-      font-size: 12px;
-    }}
-    .author-sub {{
-      font-size: 9px;
-    }}
-  }}
-  @media (max-width: 760px), (max-height: 700px) {{
-    .welcome-overlay {{
-      justify-content: flex-start;
-      padding: 18px 12px 24px;
-    }}
-    .title-section {{
-      margin-bottom: 14px;
-    }}
-    .app-logo {{
-      height: clamp(132px, 20vh, 180px);
-      max-width: min(520px, 92vw);
-      margin: 0 auto -16px auto;
-    }}
-    .title-section h1 {{
-      font-size: 27px;
-    }}
-    .title-section .tagline {{
-      font-size: 11px;
-      max-width: 34ch;
-      margin-left: auto;
-      margin-right: auto;
-      line-height: 1.4;
-    }}
-    .card-grid {{
-      grid-template-columns: 224px 272px;
-      grid-template-rows: auto auto;
-      width: 504px;
-      max-width: 504px;
-      gap: 6px;
-    }}
-    .glass-card {{
-      border-radius: 8px;
-      padding: 12px;
-    }}
-    .card-header {{
-      gap: 7px;
-      margin-bottom: 10px;
-    }}
-    .card-icon {{
-      width: 24px;
-      height: 24px;
-      border-radius: 5px;
-    }}
-    .card-icon svg {{
-      width: 12px;
-      height: 12px;
-    }}
-    .card-title {{
-      font-size: 10px;
-    }}
-    .btn-primary, .btn-secondary {{
-      padding: 9px 12px;
-      font-size: 11px;
-    }}
-    .recent-item {{
-      padding: 7px 8px;
-    }}
-    .recent-name, .shortcut-label, .changelog-text {{
-      font-size: 10px;
-    }}
-    .recent-meta, .kbd {{
-      font-size: 8px;
-    }}
-    .shortcut-item {{
-      gap: 8px;
-    }}
-    .dtu-logo {{
-      bottom: 12px;
-      left: 12px;
-      max-width: 46px;
-      max-height: 46px;
-    }}
-    .author-credit {{
-      bottom: 12px;
-      right: 12px;
-    }}
-    .author-name {{
-      font-size: 11px;
-    }}
-    .author-sub {{
-      font-size: 8px;
-    }}
   }}
 </style>
 </head>

@@ -36,7 +36,7 @@ class PlaceholderToggleRow(ToggleRow):
         self._label.setText(self._label.text() + " (Planned)")
         self._label.setStyleSheet(f"""
             color: {Colors.TEXT_MUTED};
-            font-size: 11px;
+            font-size: {build_screen_metrics(self).font_md}px;
             font-weight: 500;
             font-style: italic;
             background: transparent;
@@ -102,13 +102,12 @@ class PlotSidebar(QFrame):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # ── Gradient title header ──
+        # ── Title header ──
         title_widget = QWidget()
         title_widget.setFixedHeight(metrics.title_header_height)
         title_widget.setStyleSheet(f"""
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {Colors.BG_ELEVATED},
-                stop:1 {Colors.BG_SURFACE});
+            background-color: {Colors.BG_ELEVATED};
+            border-bottom: 1px solid {Colors.BORDER_DEFAULT};
         """)
         title_layout = QVBoxLayout(title_widget)
         title_layout.setContentsMargins(14 if metrics.compact else 16, 8 if metrics.compact else 10, 14 if metrics.compact else 16, 8 if metrics.compact else 10)
@@ -117,7 +116,7 @@ class PlotSidebar(QFrame):
         title_label = QLabel("Plot Controls")
         title_label.setStyleSheet(f"""
             color: {Colors.TEXT_PRIMARY};
-            font-size: 15px;
+            font-size: {metrics.font_title}px;
             font-weight: 700;
             background-color: transparent;
         """)
@@ -126,7 +125,7 @@ class PlotSidebar(QFrame):
         subtitle_label = QLabel("Visualization & Options")
         subtitle_label.setStyleSheet(f"""
             color: {Colors.TEXT_TERTIARY};
-            font-size: 10px;
+            font-size: {metrics.font_sm}px;
             font-weight: 500;
             background-color: transparent;
         """)

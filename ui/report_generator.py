@@ -10,6 +10,7 @@ from io import BytesIO
 import datetime
 import tempfile
 from typing import Any, Callable, Dict, List
+from xml.sax.saxutils import escape
 
 import numpy as np
 
@@ -33,6 +34,11 @@ class ReportSettings:
     use_landscape: bool
     include_map: bool
     map_style: str
+    project_title: str = ""
+    project_number: str = ""
+    analyst: str = ""
+    client: str = ""
+    notes: str = ""
 
 
 class PdfReportGenerator:
@@ -110,11 +116,32 @@ class PdfReportGenerator:
             )
 
             # Title page
-            portrait_story.append(Paragraph("Hydraulic Gradient Analysis Report", title_style))
+            report_title = (s.project_title or "").strip() or "Hydraulic Gradient Analysis Report"
+            portrait_story.append(Paragraph(escape(report_title), title_style))
             portrait_story.append(Spacer(1, 24))
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             portrait_story.append(Paragraph(f"Generated: {timestamp}", styles["Normal"]))
             portrait_story.append(Paragraph("Software: HeadAnalyser v2.0", styles["Normal"]))
+
+            dataset_name = getattr(dataset, "name", "")
+            if dataset_name:
+                portrait_story.append(Paragraph(f"Dataset: {escape(str(dataset_name))}", styles["Normal"]))
+
+            metadata = [
+                ("Project", s.project_number),
+                ("Analyst", s.analyst),
+                ("Client", s.client),
+            ]
+            for label, value in metadata:
+                value = (value or "").strip()
+                if value:
+                    portrait_story.append(Paragraph(f"{label}: {escape(value)}", styles["Normal"]))
+
+            notes = (s.notes or "").strip()
+            if notes:
+                note_text = escape(notes).replace("\n", "<br/>")
+                portrait_story.append(Spacer(1, 8))
+                portrait_story.append(Paragraph(f"Notes:<br/>{note_text}", styles["Normal"]))
             portrait_story.append(Spacer(1, 16))
 
             # Analysis parameters

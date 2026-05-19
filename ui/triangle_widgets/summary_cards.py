@@ -22,7 +22,7 @@ class _SummaryCard(QWidget):
         super().__init__(parent)
         self.setMinimumWidth(140)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(78)
+        self.setFixedHeight(64)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             _SummaryCard {{
@@ -34,8 +34,8 @@ class _SummaryCard(QWidget):
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 12, 10)
-        layout.setSpacing(3)
+        layout.setContentsMargins(12, 8, 10, 8)
+        layout.setSpacing(2)
 
         # Title row with optional icon
         title_row = QHBoxLayout()
@@ -62,7 +62,7 @@ class _SummaryCard(QWidget):
         self.value_label = QLabel("-")
         self.value_label.setStyleSheet(f"""
             color: {value_color};
-            font-size: 20px; font-weight: 600;
+            font-size: 17px; font-weight: 600;
             background: transparent; border: none;
             line-height: 1.1;
         """)
@@ -93,7 +93,7 @@ class _RatioBarCard(QWidget):
         super().__init__(parent)
         self.setMinimumWidth(140)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(78)
+        self.setFixedHeight(64)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             _RatioBarCard {{
