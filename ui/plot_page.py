@@ -131,6 +131,8 @@ class PlotPage(QWidget):
         # Grid plot area — wraps primary PlotWidget; supports 1-4 cell layouts
         _primary_pw = PlotWidget(self.main_window)
         self._grid_area = GridPlotArea(self.main_window, _primary_pw)
+        # Lazily-created cells inherit page-level state (dataset_id, etc.).
+        self._grid_area._on_new_plot_widget = self._init_new_plot_widget
         self._grid_area.save_active_cell_state.connect(self._on_save_cell_state)
         self._grid_area.active_cell_changed.connect(self._on_active_cell_changed)
         plot_column_layout.addWidget(self._grid_area, 1)
@@ -1579,9 +1581,29 @@ class PlotPage(QWidget):
     # ──────────────────────────────────────────────────
 
     def update_plot(self, data, plot_type):
-        """Update the plot."""
+        """Render every grid cell.
+
+        The active cell adopts ``plot_type`` (so toolbar "switch to X" still
+        works); inactive cells re-render with their own stored ``plot_type``.
+        Toolbar pills (Legend/Grid/Compass/Dark) remain global state on
+        ``main_window`` — all cells read those same flags at draw time, so
+        toggling a pill is now visible on every cell, not just the active one.
+        """
         _perf = self._perf_tic("PlotPage.update_plot")
-        self.plot_widget.update_plot(data, plot_type)
+        # Persist the requested type on the active cell so the next cell-switch
+        # / repaint uses it (matches how _on_plot_type_changed normally records it).
+        try:
+            active = self._grid_area.active_cell
+            active.save_state(plot_type, active.settings)
+        except Exception:
+            pass
+        # Render each cell in its own plot_type. Single-cell layouts trivially
+        # render once (active cell only), preserving prior perf.
+        for cell in self._grid_area.cells:
+            try:
+                cell.plot_widget.update_plot(data, cell.plot_type)
+            except Exception:
+                pass
         if getattr(self, "quick_stats_btn", None) is not None and self.quick_stats_btn.isChecked():
             try:
                 self.quick_stats_panel.update_from_app()
@@ -1590,9 +1612,124 @@ class PlotPage(QWidget):
         self._perf_toc(_perf)
 
     def clear_plot(self):
-        self.plot_widget.clear_plot()
+        # Clear every cell so a "new dataset" wipes the whole grid.
+        try:
+            for cell in self._grid_area.cells:
+                try:
+                    cell.plot_widget.clear_plot()
+                except Exception:
+                    pass
+        except Exception:
+            # Fallback if grid area not yet built
+            self.plot_widget.clear_plot()
+
+    # ──────────────────────────────────────────────────
+    #  Cross-cell helpers — broadcast to every cell so that
+    #  cross-widget interactions (map clicks, table row selection
+    #  from main_window, exclusion-filter refresh) update every
+    #  visible plot, not just the one currently focused.
+    # ──────────────────────────────────────────────────
+
+    def highlight_point_by_id_all(self, point_id) -> None:
+        """Highlight `point_id` on every grid cell."""
+        try:
+            for cell in self._grid_area.cells:
+                try:
+                    cell.plot_widget.highlight_point_by_id(str(point_id))
+                except Exception:
+                    pass
+        except Exception:
+            try:
+                self.plot_widget.highlight_point_by_id(str(point_id))
+            except Exception:
+                pass
+
+    def clear_point_highlight_all(self) -> None:
+        """Clear point highlight on every grid cell."""
+        try:
+            for cell in self._grid_area.cells:
+                try:
+                    cell.plot_widget.clear_point_highlight()
+                except Exception:
+                    pass
+        except Exception:
+            try:
+                self.plot_widget.clear_point_highlight()
+            except Exception:
+                pass
+
+    def set_dataset_id(self, dataset_id) -> None:
+        """Tag every current and future plot widget with this dataset_id.
+
+        ``_dataset_id`` is read by ``PlotWidget`` when constructing the
+        GeoDK panel (so the dataset context is correct regardless of which
+        cell triggers the action). main_window calls this once per dataset
+        tab creation; subsequent ``GridPlotArea._ensure_widgets`` re-applies
+        it to lazily-created cells via the ``_on_new_plot_widget`` hook.
+        """
+        sid = str(dataset_id)
+        self._dataset_id = sid
+        try:
+            for pw in getattr(self._grid_area, "_plot_widgets", []):
+                try:
+                    pw._dataset_id = sid
+                except Exception:
+                    pass
+        except Exception:
+            try:
+                self.plot_widget._dataset_id = sid
+            except Exception:
+                pass
+
+    def _init_new_plot_widget(self, pw) -> None:
+        """Hook for GridPlotArea — apply page-level state to a fresh PlotWidget."""
+        sid = getattr(self, "_dataset_id", None)
+        if sid is not None:
+            try:
+                pw._dataset_id = sid
+            except Exception:
+                pass
+
+    def refresh_2d_labels_only_all(self) -> bool:
+        """Refresh 2-D labels on every cell. Returns True if *any* cell handled it."""
+        ok_any = False
+        try:
+            for cell in self._grid_area.cells:
+                try:
+                    if cell.plot_type == "2D" and bool(cell.plot_widget.refresh_2d_labels_only()):
+                        ok_any = True
+                except Exception:
+                    pass
+        except Exception:
+            try:
+                ok_any = bool(self.plot_widget.refresh_2d_labels_only())
+            except Exception:
+                ok_any = False
+        return ok_any
 
     def export_plot(self, file_path):
+        """Export the current view.
+
+        For a multi-cell grid, captures the full splitter tree (composite of
+        all visible plots, splitter handles included) using ``QWidget.grab()``.
+        For a 1×1 layout, defers to the active cell's matplotlib ``savefig``
+        path so the report generator's high-DPI behavior is preserved.
+        """
+        try:
+            preset = self._grid_area.current_preset()
+        except Exception:
+            preset = 1
+        if preset == 1:
+            self.plot_widget.export_plot(file_path)
+            return
+        try:
+            pix = self._grid_area.grab()
+            if not pix.isNull():
+                pix.save(str(file_path))
+                return
+        except Exception:
+            pass
+        # Fallback: active cell only
         self.plot_widget.export_plot(file_path)
 
     def set_data(self, data):

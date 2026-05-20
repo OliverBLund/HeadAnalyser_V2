@@ -1506,7 +1506,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                 return
         self._on_plot_point_selected(str(point_id))
         try:
-            dataset.plot_page.plot_widget.highlight_point_by_id(str(point_id))
+            dataset.plot_page.highlight_point_by_id_all(str(point_id))
         except Exception:
             pass
         try:
@@ -1520,7 +1520,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         if dataset is None:
             return
         try:
-            dataset.plot_page.plot_widget.clear_point_highlight()
+            dataset.plot_page.clear_point_highlight_all()
         except Exception:
             pass
         try:
@@ -1586,7 +1586,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         if dataset is None:
             return
         try:
-            dataset.plot_page.plot_widget.highlight_point_by_id(pid)
+            dataset.plot_page.highlight_point_by_id_all(pid)
         except Exception:
             pass
         try:
@@ -3470,23 +3470,14 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.update_plot()
 
     def _try_refresh_2d_labels_only(self) -> bool:
-        """Try a cheap label-only refresh for current 2D plot."""
+        """Try a cheap label-only refresh on every 2-D cell in the grid."""
         dataset = self.get_active_dataset()
         if dataset is None or not hasattr(dataset, "plot_page"):
             return False
         if self.current_plot_type != "2D":
             return False
-
         try:
-            plot_widget = dataset.plot_page.plot_widget
-        except Exception:
-            return False
-
-        if plot_widget is None or not hasattr(plot_widget, "refresh_2d_labels_only"):
-            return False
-
-        try:
-            return bool(plot_widget.refresh_2d_labels_only())
+            return bool(dataset.plot_page.refresh_2d_labels_only_all())
         except Exception:
             return False
 
@@ -3943,8 +3934,9 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         dataset.report_view = report_view
         dataset.page_stack = page_stack
         # Allow PlotWidget to tag emitted transects with this dataset context.
+        # Goes through PlotPage so every current AND future grid cell gets it.
         try:
-            plot_page.plot_widget._dataset_id = str(dataset_id)
+            plot_page.set_dataset_id(dataset_id)
         except Exception:
             pass
 

@@ -9,7 +9,7 @@ all sidebar/toolbar changes to that cell only.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal
 from PyQt5.QtGui import QColor, QPainter
@@ -165,6 +165,9 @@ class GridPlotArea(QWidget):
         # All PlotWidget instances ever created; index 0 = primary (pre-existing)
         self._plot_widgets: List[QWidget] = [primary_plot_widget]
         self._root: Optional[QWidget] = None
+        # Hook the owner (PlotPage) can install to initialize freshly-created
+        # plot widgets (e.g., stamp `_dataset_id`, apply page-wide flags).
+        self._on_new_plot_widget: Optional[Callable[[QWidget], None]] = None
 
         self._lay = QVBoxLayout(self)
         self._lay.setContentsMargins(0, 0, 0, 0)
@@ -301,10 +304,20 @@ class GridPlotArea(QWidget):
             pass
 
     def _ensure_widgets(self, n: int) -> None:
-        """Lazily create additional PlotWidget instances as needed."""
+        """Lazily create additional PlotWidget instances as needed.
+
+        Each freshly created widget is passed through ``_on_new_plot_widget``
+        (if set) so the owning PlotPage can stamp dataset_id and any other
+        page-wide state onto it before it is wrapped in a container.
+        """
         from ui.plot_widget import PlotWidget  # local import avoids circular dep
         while len(self._plot_widgets) < n:
             pw = PlotWidget(self._mw)
+            if self._on_new_plot_widget is not None:
+                try:
+                    self._on_new_plot_widget(pw)
+                except Exception:
+                    pass
             self._plot_widgets.append(pw)
 
     # ── activation ───────────────────────────────────────────────────────────
