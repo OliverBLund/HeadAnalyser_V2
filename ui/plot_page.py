@@ -13,7 +13,7 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QComboBox, QPushButton, QToolButton, QSizePolicy, QStackedWidget,
-    QButtonGroup, QMenu,
+    QButtonGroup,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QEvent, QTimer, QAbstractAnimation, QPoint, QRectF, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QPen
@@ -932,10 +932,11 @@ class PlotPage(QWidget):
         self.appearance_btn = QToolButton()
         self.appearance_btn.setIcon(icon(Icons.PALETTE, color=Colors.TEXT_SECONDARY))
         self.appearance_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.appearance_btn.setPopupMode(QToolButton.InstantPopup)
         self.appearance_btn.setCursor(Qt.PointingHandCursor)
         self.appearance_btn.setFixedHeight(metrics.toolbar_control_height)
         self.appearance_btn.setToolTip("Templates, color style, and plot format")
+        self.appearance_btn.clicked.connect(self._show_appearance_flyout)
+        self._appearance_flyout = None
         self._refresh_appearance_button()
         tl.addWidget(self.appearance_btn)
 
@@ -1144,62 +1145,34 @@ class PlotPage(QWidget):
             ))
             palette = get_palette(getattr(self.main_window, "current_color_style", "hydraulic"))
             btn.setText(f"Templates  {palette.name} / {fmt}")
-            btn.setMenu(self._build_appearance_menu())
         except Exception:
             btn.setText("Templates")
 
-    def _build_appearance_menu(self) -> QMenu:
-        from styles.plot_palettes import all_palettes
-        from styles.plot_styles import PlotStyles
+    def _show_appearance_flyout(self) -> None:
+        from .dialogs.plot_appearance_flyout import PlotAppearanceFlyout
 
-        menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                color: {Colors.TEXT_SECONDARY};
-                background: {Colors.BG_PANEL};
-                border: 1px solid {Colors.BORDER_DEFAULT};
-                padding: 6px;
-            }}
-            QMenu::item {{
-                padding: 6px 26px 6px 10px;
-                border-radius: 6px;
-                font-size: 11px;
-            }}
-            QMenu::item:selected {{
-                color: {Colors.TEXT_PRIMARY};
-                background: {Colors.BG_HOVER};
-            }}
-            QMenu::separator {{
-                height: 1px;
-                background: {Colors.BORDER_SUBTLE};
-                margin: 6px 4px;
-            }}
-        """)
-        gallery = menu.addAction("Template Gallery...")
-        gallery.triggered.connect(self.main_window.on_plot_template_picker)
-        menu.addSeparator()
-
-        menu.addSection("Format")
-        current_format = str(getattr(
+        if self._appearance_flyout is not None:
+            try:
+                self._appearance_flyout.close()
+            except Exception:
+                pass
+        self._appearance_flyout = PlotAppearanceFlyout(
             self.main_window,
-            "current_plot_format",
-            getattr(self.main_window, "current_plot_style", "Default"),
-        ))
-        for format_key in PlotStyles.format_names():
-            action = menu.addAction(format_key)
-            action.setCheckable(True)
-            action.setChecked(format_key == current_format)
-            action.triggered.connect(lambda _checked=False, key=format_key: self._on_style_changed(key))
-        menu.addSeparator()
+            plot_type=getattr(self.main_window, "current_plot_type", "2D"),
+            parent=self,
+        )
+        self._appearance_flyout.template_selected.connect(self._apply_template_key)
+        self._appearance_flyout.palette_selected.connect(self._apply_palette_key)
+        self._appearance_flyout.format_selected.connect(self._on_style_changed)
+        self._appearance_flyout.gallery_requested.connect(self.main_window.on_plot_template_picker)
+        pos = self.appearance_btn.mapToGlobal(self.appearance_btn.rect().bottomLeft())
+        self._appearance_flyout.move(pos)
+        self._appearance_flyout.show()
 
-        menu.addSection("Color Style")
-        current_palette = str(getattr(self.main_window, "current_color_style", "hydraulic"))
-        for palette in all_palettes(include_custom=True):
-            action = menu.addAction(palette.name)
-            action.setCheckable(True)
-            action.setChecked(palette.key == current_palette)
-            action.triggered.connect(lambda _checked=False, key=palette.key: self._apply_palette_key(key))
-        return menu
+    def _apply_template_key(self, template_key: str) -> None:
+        if hasattr(self.main_window, "apply_plot_template"):
+            self.main_window.apply_plot_template(template_key)
+        self._refresh_appearance_button()
 
     def _make_pill_toggle(self, text: str, tooltip: str, checked: bool, icon_name: str = None):
         """Create a pill-style toggle button for the pill group."""

@@ -3393,13 +3393,40 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         dialog = PlotTemplatePickerDialog(
             plot_type=self.current_plot_type,
             active_key=getattr(self, "current_plot_template", "hydraulic_field"),
+            active_palette_key=getattr(self, "current_color_style", "hydraulic"),
+            active_format_key=getattr(self, "current_plot_format", getattr(self, "current_plot_style", "Default")),
             parent=self,
         )
         try:
             if dialog.exec_():
-                self.apply_plot_template(dialog.selected_template_key())
+                self.apply_plot_appearance(dialog.selected_kind(), dialog.selected_key())
         finally:
             dialog.deleteLater()
+
+    def apply_plot_appearance(self, kind: str, key: str):
+        kind = str(kind or "template")
+        if kind == "template":
+            return self.apply_plot_template(key)
+
+        if kind == "palette":
+            from styles.plot_palettes import apply_palette_to_target
+            result = apply_palette_to_target(self, key, self.current_plot_type)
+        else:
+            result = key
+            self.current_plot_format = key
+            self.current_plot_style = key
+
+        dataset = self.get_active_dataset()
+        if dataset is not None:
+            self.sync_to_dataset(dataset)
+        self._sync_active_sidebar_from_state()
+        try:
+            if dataset is not None and hasattr(dataset, "plot_page"):
+                dataset.plot_page._on_save_cell_state()
+        except Exception:
+            pass
+        self.update_plot()
+        return result
 
     def apply_plot_template(self, template_key: str):
         from styles.plot_templates import apply_template_to_target

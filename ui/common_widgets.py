@@ -500,30 +500,32 @@ class CardSection(QWidget):
 
         card_layout.addWidget(self._header)
 
-        # Content body — generous horizontal padding so combos / spinboxes
-        # have visible breathing room from the card border. Vertical kept
-        # tight so the sidebar stays dense.
-        # We use BOTH layout margins AND stylesheet padding: Qt5's QFrame
-        # stylesheet with border can sometimes ignore the children's layout
-        # margins, especially when a child has its own stylesheet. Setting
-        # padding on the body via QSS makes the inset explicit at the paint
-        # level so child widgets actually sit inset from the card border.
+        # Content body — wrap actual content in a NESTED widget so we have
+        # two stacked layout-margin layers. Qt5 QSS with a styled parent
+        # QFrame can swallow a child's contentsMargins, so we rely on
+        # ``_body_layout`` (outer, sets the visible inset) AND inject the
+        # content via ``self._content``. This is the only reliable way to
+        # guarantee visible horizontal breathing room from the card border.
         self._body = QWidget()
         self._body.setObjectName("cardBody")
-        self._body_layout = QVBoxLayout(self._body)
-        self._body_layout.setContentsMargins(0, 0, 0, 0)
-        self._body_layout.setSpacing(4)
         self._body.setStyleSheet(f"""
             QWidget#cardBody {{
                 background-color: transparent;
                 border-top: 1px solid {Colors.BORDER_SUBTLE};
-                padding: 8px 14px 10px 14px;
-            }}
-            QWidget#cardBody QLabel {{
-                background-color: transparent;
-                border: none;
             }}
         """)
+        _outer_body_layout = QVBoxLayout(self._body)
+        _outer_body_layout.setContentsMargins(14, 8, 14, 10)
+        _outer_body_layout.setSpacing(0)
+
+        # Inner content widget — anything added via addWidget/addLayout lands
+        # here. Two layout levels guarantee the inset is honored.
+        _content = QWidget()
+        _content.setStyleSheet("QWidget { background-color: transparent; }")
+        self._body_layout = QVBoxLayout(_content)
+        self._body_layout.setContentsMargins(0, 0, 0, 0)
+        self._body_layout.setSpacing(4)
+        _outer_body_layout.addWidget(_content)
         card_layout.addWidget(self._body)
 
         main_layout.addWidget(self._card)

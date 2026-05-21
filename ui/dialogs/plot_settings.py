@@ -1117,16 +1117,36 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
         dialog = PlotTemplatePickerDialog(
             plot_type=self.plot_type,
             active_key=active_key,
+            active_palette_key=getattr(self.main_window, "current_color_style", DEFAULT_PALETTE_KEY),
+            active_format_key=getattr(
+                self.main_window,
+                "current_plot_format",
+                getattr(self.main_window, "current_plot_style", "Default"),
+            ),
             parent=self,
         )
         try:
             if dialog.exec_():
-                template = get_template(dialog.selected_template_key())
-                self._pending_template_key = template.key
-                self._pending_template_settings = template.settings_for(self.plot_type)
-                self._sync_composition_controls_from_settings(self._pending_template_settings)
-                self._apply_template_to_controls(self._pending_template_settings)
-                self._update_template_summary(template)
+                kind = dialog.selected_kind()
+                key = dialog.selected_key()
+                if kind == "template":
+                    template = get_template(key)
+                    self._pending_template_key = template.key
+                    self._pending_template_settings = template.settings_for(self.plot_type)
+                    self._sync_composition_controls_from_settings(self._pending_template_settings)
+                    self._apply_template_to_controls(self._pending_template_settings)
+                    self._update_template_summary(template)
+                elif kind == "palette":
+                    palette = get_palette(key)
+                    settings = palette.settings_for(self.plot_type)
+                    settings["current_color_style"] = palette.key
+                    self._pending_template_settings.update(settings)
+                    self._sync_composition_controls_from_settings(settings)
+                    self._apply_template_to_controls(settings)
+                else:
+                    settings = {"current_plot_format": key, "current_plot_style": key}
+                    self._pending_template_settings.update(settings)
+                    self._sync_composition_controls_from_settings(settings)
         finally:
             dialog.deleteLater()
 
