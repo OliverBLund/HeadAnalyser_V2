@@ -43,6 +43,55 @@ class GridCellContainer(QWidget):
 
     _BORDER_PX = 2
 
+    # Main-window attributes whose values this cell owns. When the cell is
+    # active, ``main_window.<attr>`` mirrors ``self._mw_state[attr]``.
+    # NOTE: depth_min/max and head_min/max are NOT actual attributes on
+    # main_window — they live exclusively in the properties_panel sliders.
+    # We still store them in ``_mw_state`` (so we can restore the slider on
+    # cell switch), but we do NOT include them in the snapshot-from-mw path
+    # below (otherwise getattr(mw, "head_min", None) would return None and
+    # clobber the value just written by _persist_filter_inputs_to_active_cell).
+    MW_FILTER_INPUTS_CELL_ONLY = (
+        "depth_min", "depth_max", "head_min", "head_max",
+    )
+    MW_FILTER_INPUTS_MIRRORED = (
+        "excluded_ids", "excluded_member_keys",
+    )
+    MW_FILTER_OUTPUTS = (
+        "filtered_data", "filtered_plot_data",
+        "triangle_data", "gradient_data", "rejected_data",
+        "total_triangles",
+        "rejected_due_to_uncertainty",
+        "rejected_due_to_triangle_quality",
+        "rejected_due_to_calculation_failed",
+    )
+    # Dark canvas isn't a main_window attribute — it's stored on each
+    # PlotWidget (``_dark_canvas``), so it's already per-cell by construction.
+    MW_PILLS = (
+        "show_legend", "show_grid", "show_compass",
+    )
+    MW_VISUAL_COMPOSITION = (
+        "current_plot_template",
+        "current_color_style",
+        "current_plot_format",
+        "current_plot_style",
+        "current_popup_style",
+        "colormap_2d",
+        "colormap_3d",
+        "colormap_vectors",
+        "histogram_bar_color",
+        "histogram_edge_color",
+        "rose_color",
+        "id_label_color",
+        "head_label_color",
+        "arrow_color",
+    )
+    # Keys captured by ``snapshot_mw_state`` (i.e. genuinely live on mw).
+    MW_SNAPSHOT_KEYS = MW_FILTER_INPUTS_MIRRORED + MW_FILTER_OUTPUTS + MW_PILLS + MW_VISUAL_COMPOSITION
+    # Keys restored by ``apply_to_mw`` (mirrored + cell-only). The cell-only
+    # ones are also written to mw — harmless, since nothing reads them there.
+    MW_KEYS = MW_FILTER_INPUTS_CELL_ONLY + MW_SNAPSHOT_KEYS
+
     def __init__(self, index: int, plot_widget: QWidget, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._index = index
@@ -52,6 +101,9 @@ class GridCellContainer(QWidget):
         # Per-cell saved state
         self._plot_type: str = "2D"
         self._settings: dict = {}
+        # Per-cell mirror of main_window attributes (see MW_KEYS).
+        # Populated by ``snapshot_mw_state`` and restored via ``apply_to_mw``.
+        self._mw_state: dict = {}
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(
@@ -96,6 +148,57 @@ class GridCellContainer(QWidget):
     def save_state(self, plot_type: str, settings: dict) -> None:
         self._plot_type = str(plot_type)
         self._settings = dict(settings)
+
+    # ── per-cell mirror of main_window attributes ───────────────────────────
+
+    @property
+    def mw_state(self) -> dict:
+        return self._mw_state
+
+    @staticmethod
+    def _dup(value):
+        """Defensive copy for mutable containers; pass-through for scalars/DataFrames."""
+        if isinstance(value, set):
+            return set(value)
+        return value
+
+    def snapshot_mw_state(self, mw) -> None:
+        """Capture ``mw``'s per-cell attributes into this cell.
+
+        Preserves any existing cell-only filter inputs (depth/head slider
+        values), since those don't live on mw — they're managed directly via
+        ``_persist_filter_inputs_to_active_cell``.
+        """
+        snap = dict(self._mw_state)  # preserve existing (esp. cell-only keys)
+        for key in self.MW_SNAPSHOT_KEYS:
+            snap[key] = self._dup(getattr(mw, key, None))
+        self._mw_state = snap
+
+    def apply_to_mw(self, mw) -> None:
+        """Push this cell's stored state back onto ``mw``."""
+        for key in self.MW_KEYS:
+            if key not in self._mw_state:
+                continue
+            try:
+                setattr(mw, key, self._dup(self._mw_state[key]))
+            except Exception:
+                pass
+
+    def inherit_from(self, other: "GridCellContainer") -> None:
+        """Copy another cell's mw_state (used when a fresh cell is added to the grid)."""
+        snap = {}
+        for key in self.MW_KEYS:
+            snap[key] = self._dup(other._mw_state.get(key))
+        self._mw_state = snap
+        # Also copy plot type + sidebar settings so the new cell starts as a clone.
+        self._plot_type = str(other._plot_type)
+        self._settings = dict(other._settings)
+        # Carry over the dark-canvas pill which lives on the PlotWidget itself.
+        try:
+            other_dark = bool(getattr(other.plot_widget, "_dark_canvas", False))
+            self._pw.set_dark_canvas(other_dark)
+        except Exception:
+            pass
 
     # ── click capture ────────────────────────────────────────────────────────
 
@@ -204,6 +307,10 @@ class GridPlotArea(QWidget):
         rows, cols = _PRESET_GRID[self._preset]
         n = rows * cols
 
+        # Hold a reference to the old containers (their _mw_state) for the
+        # rebuild — newly-added cells inherit from the active one.
+        self._old_cells_for_inherit = list(self._containers)
+
         self._ensure_widgets(n)
 
         # Reparent plot widgets out to self (GridPlotArea) and hide them so
@@ -231,12 +338,32 @@ class GridPlotArea(QWidget):
         # Drop stale Python refs to the (now-deleted) old containers.
         self._containers = []
 
+        # Capture the soon-to-be-replaced active cell's state so we can copy it
+        # onto any *newly-introduced* cells (those past the prior length).
+        seed_cells = list(self._old_cells_for_inherit) if hasattr(self, "_old_cells_for_inherit") else []
+        prior_len = len(seed_cells)
+        prior_active_idx = self._active_idx if 0 <= self._active_idx < prior_len else 0
+        seed_cell = seed_cells[prior_active_idx] if seed_cells else None
+
         # (Re)create containers around the surviving plot widgets.
         for i in range(n):
             pw = self._plot_widgets[i]
             pw.show()
             c = GridCellContainer(i, pw, self)
             c.activated.connect(self._on_activated)
+            # Preserve state for indices that existed before; newly-introduced
+            # indices inherit from the previously-active cell so the grid
+            # starts as N clones of the user's current view.
+            if i < prior_len:
+                try:
+                    c.inherit_from(seed_cells[i])
+                except Exception:
+                    pass
+            elif seed_cell is not None:
+                try:
+                    c.inherit_from(seed_cell)
+                except Exception:
+                    pass
             self._containers.append(c)
 
         self._active_idx = min(self._active_idx, n - 1)
@@ -245,6 +372,8 @@ class GridPlotArea(QWidget):
         root = self._build_splitter_tree(rows, cols)
         self._root = root
         self._lay.addWidget(root)
+        # Drop the seed snapshot now that all new containers have inherited.
+        self._old_cells_for_inherit = []
 
     def _build_splitter_tree(self, rows: int, cols: int) -> QWidget:
         """Construct nested QSplitters for the given grid dimensions."""

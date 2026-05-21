@@ -54,6 +54,8 @@ class Dataset:
         # Plot settings
         self.current_plot_type = "2D"
         self.current_plot_template = "hydraulic_field"
+        self.current_color_style = "hydraulic"
+        self.current_plot_format = "Default"
         self.show_points = True
         self.show_contours = False
         self.show_colorbar = True
@@ -76,7 +78,7 @@ class Dataset:
         self.current_popup_style = "Clean"
 
         # Plot-specific options
-        self.colormap_2d = "viridis"
+        self.colormap_2d = "turbo"
         self.point_size = 80
         # Point glow effect
         self.show_point_glow = True
@@ -88,14 +90,14 @@ class Dataset:
         self.contour_extrapolation = "none"
         self.elevation_3d = 30
         self.azimuth_3d = 45
-        self.colormap_3d = "viridis"
+        self.colormap_3d = "turbo"
         self.vector_scale = 5.0
         self.vector_alpha = 0.7
         self.colormap_vectors = "viridis"
         self.show_mean_vector = True
         self.normalize_vectors = False
         self.histogram_bins = 30
-        self.histogram_bar_color = "grey"
+        self.histogram_bar_color = "teal"
         self.histogram_edge_color = "black"
         self.histogram_show_mean = False
         self.histogram_show_median = False
@@ -110,7 +112,7 @@ class Dataset:
         self.rose_ci_level = 95
         self.rose_ci_resamples = 200
         self.rose_mode = "count"
-        self.rose_color = "blue"
+        self.rose_color = "teal"
         self.rose_show_mean_resultant = True
         self.rose_show_median = False
 

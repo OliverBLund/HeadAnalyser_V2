@@ -13,6 +13,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
 from styles.colors import Colors
+from styles.plot_palettes import DEFAULT_PALETTE_KEY, all_palettes, apply_palette_to_target, get_palette
+from styles.plot_styles import PlotStyles
 from styles.plot_templates import DEFAULT_TEMPLATE_KEY, get_template
 from styles.stylesheet import StyleSheet
 from ui.common_widgets import ToggleSwitch
@@ -397,9 +399,13 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
                 border-radius: 10px;
             }}
         """)
-        template_layout = QHBoxLayout(template_box)
+        template_layout = QVBoxLayout(template_box)
         template_layout.setContentsMargins(14, 12, 14, 12)
-        template_layout.setSpacing(12)
+        template_layout.setSpacing(10)
+
+        template_top = QHBoxLayout()
+        template_top.setContentsMargins(0, 0, 0, 0)
+        template_top.setSpacing(12)
 
         template_text = QVBoxLayout()
         template_text.setSpacing(3)
@@ -423,7 +429,7 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
             border: none;
         """)
         template_text.addWidget(self.template_desc_label)
-        template_layout.addLayout(template_text, 1)
+        template_top.addLayout(template_text, 1)
 
         choose_template_btn = QPushButton("Choose")
         choose_template_btn.setCursor(Qt.PointingHandCursor)
@@ -443,7 +449,36 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
             }}
         """)
         choose_template_btn.clicked.connect(self._choose_template)
-        template_layout.addWidget(choose_template_btn)
+        template_top.addWidget(choose_template_btn)
+        template_layout.addLayout(template_top)
+
+        composition_row = QHBoxLayout()
+        composition_row.setContentsMargins(0, 0, 0, 0)
+        composition_row.setSpacing(8)
+        self.format_combo = self._make_composition_combo()
+        for format_key in PlotStyles.format_names():
+            self.format_combo.addItem(format_key, format_key)
+        self._set_combo_data(
+            self.format_combo,
+            str(getattr(
+                self.main_window,
+                "current_plot_format",
+                getattr(self.main_window, "current_plot_style", "Default"),
+            )),
+        )
+        self.palette_combo = self._make_composition_combo()
+        for palette in all_palettes(include_custom=True):
+            self.palette_combo.addItem(palette.name, palette.key)
+        self._set_combo_data(
+            self.palette_combo,
+            str(getattr(self.main_window, "current_color_style", DEFAULT_PALETTE_KEY)),
+        )
+        self.palette_combo.currentIndexChanged.connect(self._on_palette_combo_changed)
+        composition_row.addWidget(self._make_comp_label("Format"))
+        composition_row.addWidget(self.format_combo, 1)
+        composition_row.addWidget(self._make_comp_label("Color Style"))
+        composition_row.addWidget(self.palette_combo, 1)
+        template_layout.addLayout(composition_row)
 
         sec_templates.addFullWidget(template_box)
         body_layout.addWidget(sec_templates)
@@ -1003,12 +1038,75 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
 
     # ── Helpers ──
 
+    def _make_comp_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet(f"""
+            color: {Colors.TEXT_MUTED};
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            background: transparent;
+            border: none;
+        """)
+        return label
+
+    def _make_composition_combo(self) -> QComboBox:
+        combo = QComboBox()
+        combo.setFixedHeight(30)
+        combo.setStyleSheet(f"""
+            QComboBox {{
+                color: {Colors.TEXT_SECONDARY};
+                background: {Colors.BG_PANEL};
+                border: 1px solid {Colors.BORDER_DEFAULT};
+                border-radius: 7px;
+                padding: 0 8px;
+                font-size: 10px;
+                font-weight: 700;
+            }}
+            QComboBox:hover {{ border-color: {Colors.BORDER_MEDIUM}; }}
+            QComboBox::drop-down {{ border: none; width: 18px; }}
+        """)
+        return combo
+
+    def _set_combo_data(self, combo: QComboBox, key: str) -> None:
+        idx = combo.findData(key)
+        if idx < 0:
+            idx = combo.findText(str(key))
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+
+    def _combo_data(self, combo: QComboBox, fallback: str = "") -> str:
+        data = combo.currentData()
+        return str(data if data is not None else (combo.currentText() or fallback))
+
+    def _sync_composition_controls_from_settings(self, settings: dict) -> None:
+        if hasattr(self, "format_combo") and (
+            "current_plot_format" in settings or "current_plot_style" in settings
+        ):
+            fmt = settings.get("current_plot_format", settings.get("current_plot_style", "Default"))
+            self.format_combo.blockSignals(True)
+            self._set_combo_data(self.format_combo, str(fmt))
+            self.format_combo.blockSignals(False)
+        if hasattr(self, "palette_combo") and "current_color_style" in settings:
+            pal = settings.get("current_color_style", DEFAULT_PALETTE_KEY)
+            self.palette_combo.blockSignals(True)
+            self._set_combo_data(self.palette_combo, str(pal))
+            self.palette_combo.blockSignals(False)
+
+    def _on_palette_combo_changed(self, _idx: int) -> None:
+        palette_key = self._combo_data(self.palette_combo, DEFAULT_PALETTE_KEY)
+        palette = get_palette(palette_key)
+        self._apply_template_to_controls(palette.settings_for(self.plot_type))
+
     def _update_template_summary(self, template):
         if hasattr(self, "template_name_label"):
             self.template_name_label.setText(template.name)
         if hasattr(self, "template_desc_label"):
             applies = ", ".join(template.plot_types)
-            self.template_desc_label.setText(f"{template.description} Applies to: {applies}.")
+            palette_name = get_palette(template.palette_key).name
+            self.template_desc_label.setText(
+                f"{template.description} Format: {template.format_key}. Color style: {palette_name}. Applies to: {applies}."
+            )
 
     def _choose_template(self):
         from .plot_template_picker import PlotTemplatePickerDialog
@@ -1026,6 +1124,7 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
                 template = get_template(dialog.selected_template_key())
                 self._pending_template_key = template.key
                 self._pending_template_settings = template.settings_for(self.plot_type)
+                self._sync_composition_controls_from_settings(self._pending_template_settings)
                 self._apply_template_to_controls(self._pending_template_settings)
                 self._update_template_summary(template)
         finally:
@@ -1039,6 +1138,8 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
     def _apply_template_to_controls(self, settings: dict):
         if not settings:
             return
+
+        self._sync_composition_controls_from_settings(settings)
 
         if "x_axis_label" in settings:
             self.x_label_edit.setText(str(settings["x_axis_label"]))
@@ -1249,6 +1350,14 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
             if self._pending_template_key:
                 mw.current_plot_template = self._pending_template_key
 
+        if hasattr(self, "format_combo"):
+            format_key = self._combo_data(self.format_combo, "Default")
+            mw.current_plot_format = format_key
+            mw.current_plot_style = format_key
+        if hasattr(self, "palette_combo"):
+            palette_key = self._combo_data(self.palette_combo, DEFAULT_PALETTE_KEY)
+            apply_palette_to_target(mw, palette_key, self.plot_type)
+
         # Titles
         if hasattr(self, "plot_title_edit"):
             mw.plot_title = self.plot_title_edit.text()
@@ -1351,6 +1460,11 @@ class PlotSettingsDialog(FramelessDialogMixin, QDialog):
             mw.sync_to_dataset(dataset)
         if hasattr(mw, "_sync_active_sidebar_from_state"):
             mw._sync_active_sidebar_from_state()
+        try:
+            if dataset is not None and hasattr(dataset, "plot_page"):
+                dataset.plot_page._on_save_cell_state()
+        except Exception:
+            pass
 
         mw.update_plot()
         self.accept()

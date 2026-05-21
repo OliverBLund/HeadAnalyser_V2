@@ -1,14 +1,18 @@
 """
 HeadAnalyser plot template registry.
 
-Templates are intentionally data-only. They map a named visual intent to the
-same MainWindow attributes already consumed by PlotWidget and PlotSidebar.
+Templates are recipes composed from three layers:
+- color style: data colors and colormaps from styles.plot_palettes
+- format: typography, spines, ticks, and grid from styles.plot_styles
+- plot defaults: overlays, labels, contour density, statistics options, etc.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Tuple
+
+from .plot_palettes import DEFAULT_PALETTE_KEY, get_palette, palette_settings
 
 
 ALL_PLOT_TYPES = (
@@ -20,6 +24,7 @@ ALL_PLOT_TYPES = (
 )
 
 DEFAULT_TEMPLATE_KEY = "hydraulic_field"
+DEFAULT_FORMAT_KEY = "Default"
 
 
 @dataclass(frozen=True)
@@ -29,11 +34,16 @@ class PlotTemplate:
     category: str
     description: str
     plot_types: Tuple[str, ...]
+    format_key: str
+    palette_key: str
     settings: Dict[str, Any]
-    palette: Tuple[str, ...]
     preview_mode: str = "contour"
     preview_background: str = "#ffffff"
     is_built_in: bool = True
+
+    @property
+    def palette(self) -> Tuple[str, ...]:
+        return get_palette(self.palette_key).swatches
 
     def applies_to(self, plot_type: str | None) -> bool:
         if not plot_type:
@@ -41,9 +51,20 @@ class PlotTemplate:
         return "All" in self.plot_types or plot_type in self.plot_types
 
     def settings_for(self, plot_type: str | None = None) -> Dict[str, Any]:
-        # The current templates are shared dictionaries, but this hook keeps the
-        # registry ready for future plot-type-specific overrides.
-        return dict(self.settings)
+        """Return the composed target settings for this template."""
+        format_key = self.format_key or DEFAULT_FORMAT_KEY
+        palette_key = self.palette_key or DEFAULT_PALETTE_KEY
+
+        composed = {
+            "current_plot_template": self.key,
+            "current_plot_format": format_key,
+            # Compatibility alias used by existing PlotWidget rendering code.
+            "current_plot_style": format_key,
+            "current_color_style": palette_key,
+        }
+        composed.update(palette_settings(palette_key, plot_type))
+        composed.update(self.settings)
+        return composed
 
 
 def _settings(**kwargs: Any) -> Dict[str, Any]:
@@ -55,16 +76,14 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         key="hydraulic_field",
         name="Hydraulic Field",
         category="Hydraulic",
-        description="Working template for head surfaces with filled contours, readable points, and a compact label mode.",
+        description="Working view for head surfaces with filled contours, readable points, and compact labels.",
         plot_types=("2D", "3D"),
+        format_key="Default",
+        palette_key="hydraulic",
         preview_mode="contour",
         preview_background="#f8fbff",
-        palette=("#0ea5e9", "#2563eb", "#22c55e", "#f59e0b"),
         settings=_settings(
-            current_plot_style="Default",
             current_popup_style="Clean",
-            colormap_2d="turbo",
-            colormap_3d="turbo",
             show_points=True,
             show_contours=True,
             fill_contours=True,
@@ -94,13 +113,12 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         category="Report",
         description="Clean report-ready contour map with restrained labels and publication axes.",
         plot_types=("2D",),
+        format_key="Publication",
+        palette_key="blue_report",
         preview_mode="contour",
         preview_background="#ffffff",
-        palette=("#2563eb", "#38bdf8", "#94a3b8", "#111827"),
         settings=_settings(
-            current_plot_style="Publication",
             current_popup_style="Compact",
-            colormap_2d="viridis",
             show_points=True,
             show_contours=True,
             fill_contours=False,
@@ -127,15 +145,12 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         category="Review",
         description="Dense inspection view for smaller screens: reduced point size, fewer labels, and minimal axes.",
         plot_types=("All",),
+        format_key="Minimal",
+        palette_key="blue_report",
         preview_mode="contour",
         preview_background="#fbfbfd",
-        palette=("#4f46e5", "#06b6d4", "#64748b", "#22c55e"),
         settings=_settings(
-            current_plot_style="Minimal",
             current_popup_style="Compact",
-            colormap_2d="viridis",
-            colormap_3d="viridis",
-            colormap_vectors="viridis",
             show_points=True,
             show_contours=True,
             fill_contours=False,
@@ -161,17 +176,14 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         key="presentation_gradient",
         name="Presentation Gradient",
         category="Presentation",
-        description="High-contrast visuals for screen sharing, with larger typography and saturated gradients.",
+        description="High-contrast screen-sharing defaults with larger typography and saturated gradients.",
         plot_types=("All",),
+        format_key="Scientific",
+        palette_key="thermal_gradient",
         preview_mode="contour",
         preview_background="#f8fafc",
-        palette=("#7c3aed", "#0ea5e9", "#f97316", "#22c55e"),
         settings=_settings(
-            current_plot_style="Scientific",
             current_popup_style="Accent",
-            colormap_2d="turbo",
-            colormap_3d="turbo",
-            colormap_vectors="plasma",
             show_points=True,
             show_contours=True,
             fill_contours=True,
@@ -191,9 +203,6 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
             show_arrow_label=True,
             show_grid=False,
             histogram_bins=28,
-            histogram_bar_color="purple",
-            histogram_edge_color="white",
-            rose_color="purple",
         ),
     ),
     PlotTemplate(
@@ -202,13 +211,12 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         category="Diagnostics",
         description="Gradient-vector inspection with mean vector, strong contrast, and uncluttered labels.",
         plot_types=("Gradient Vectors",),
+        format_key="Scientific",
+        palette_key="thermal_gradient",
         preview_mode="vector",
         preview_background="#f8fafc",
-        palette=("#2563eb", "#0ea5e9", "#f97316", "#111827"),
         settings=_settings(
-            current_plot_style="Scientific",
             current_popup_style="Clean",
-            colormap_vectors="plasma",
             show_points=True,
             show_vector_points=True,
             show_id_labels=False,
@@ -228,15 +236,14 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         key="surface_context",
         name="Surface Context",
         category="Hydraulic",
-        description="3D surface view with contextual points and a smooth color ramp for terrain-like head variation.",
+        description="3D surface view with contextual points and a smooth terrain-like ramp.",
         plot_types=("3D",),
+        format_key="Default",
+        palette_key="surface_context",
         preview_mode="surface",
         preview_background="#f8fbff",
-        palette=("#1d4ed8", "#38bdf8", "#facc15", "#f97316"),
         settings=_settings(
-            current_plot_style="Default",
             current_popup_style="Clean",
-            colormap_3d="RdYlBu",
             show_points=True,
             show_colorbar=True,
             elevation_3d=32,
@@ -249,18 +256,16 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         key="statistics_report",
         name="Statistics Report",
         category="Statistics",
-        description="Readable histogram and rose diagram defaults for reports, with central tendency overlays enabled.",
+        description="Readable histogram and rose diagram defaults with central tendency overlays enabled.",
         plot_types=("Histogram", "Rose Diagram"),
+        format_key="Publication",
+        palette_key="statistical_teal",
         preview_mode="stats",
         preview_background="#ffffff",
-        palette=("#0f766e", "#14b8a6", "#94a3b8", "#111827"),
         settings=_settings(
-            current_plot_style="Publication",
             current_popup_style="Compact",
             show_grid=True,
             histogram_bins=32,
-            histogram_bar_color="teal",
-            histogram_edge_color="black",
             histogram_show_mean=True,
             histogram_show_median=True,
             histogram_show_ci=True,
@@ -268,7 +273,6 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
             histogram_show_kde=True,
             rose_mode="gradient_weighted",
             rose_bins=24,
-            rose_color="teal",
             rose_show_mean=True,
             rose_show_weighted_mean=True,
             rose_show_ci=True,
@@ -283,13 +287,12 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
         category="Report",
         description="Low-color figure setup for printouts and appendix exports.",
         plot_types=("2D", "Histogram", "Rose Diagram"),
+        format_key="Publication",
+        palette_key="grayscale",
         preview_mode="stats",
         preview_background="#ffffff",
-        palette=("#111827", "#64748b", "#cbd5e1", "#f8fafc"),
         settings=_settings(
-            current_plot_style="Publication",
             current_popup_style="Compact",
-            colormap_2d="Blues",
             show_points=True,
             show_contours=True,
             fill_contours=False,
@@ -305,11 +308,8 @@ _TEMPLATES: Tuple[PlotTemplate, ...] = (
             show_arrow_label=False,
             show_grid=True,
             histogram_bins=24,
-            histogram_bar_color="grey",
-            histogram_edge_color="black",
             histogram_show_mean=True,
             histogram_show_median=True,
-            rose_color="blue",
             rose_show_mean=True,
             rose_show_weighted_mean=False,
         ),
@@ -355,3 +355,4 @@ def apply_template_to_target(target: Any, template_key: str | None, plot_type: s
         setattr(target, attr, value)
     setattr(target, "current_plot_template", template.key)
     return template
+

@@ -248,14 +248,36 @@ class PlotCanvas(FigureCanvas):
         return False
 
     def resizeEvent(self, event):
-        """Handle resize with deferred redraw to keep UI animation smooth."""
+        """Schedule a debounced tight_layout so the plot re-fits its new canvas size.
+
+        Without this, matplotlib propagates the size internally but doesn't
+        recompute the axes layout — so labels, legends, colorbars, and 3-D
+        bounding boxes can run off the cell when the user drags a splitter
+        or switches grid presets, and stay clipped until the next full
+        update_plot. Coalesce via timer so a resize storm (e.g. during a
+        window drag) doesn't fire tight_layout on every event.
+        """
         super().resizeEvent(event)
-        # Let QtAgg handle size propagation internally.
-        # Avoid explicit draw scheduling here; resize storms can otherwise saturate the UI thread.
+        try:
+            self._pending_resize = True
+            # 80ms is short enough to feel instant, long enough to coalesce
+            # the burst of events Qt fires while a splitter handle is moving.
+            self._resize_timer.start(80)
+        except Exception:
+            pass
 
     def _apply_deferred_resize(self):
-        # Kept for compatibility; explicit deferred resize draws are disabled.
+        """Recompute the plot's layout once the resize burst has settled."""
         self._pending_resize = False
+        # request_tight_layout already handles its own min-interval throttling
+        # and draw_idle scheduling — just call it.
+        try:
+            self.request_tight_layout()
+        except Exception:
+            try:
+                self.draw_idle()
+            except Exception:
+                pass
 
     def _flush_deferred_interaction_draw(self):
         self._interaction_draw_pending = False
@@ -316,7 +338,14 @@ class PlotCanvas(FigureCanvas):
             self._perf_counts["interaction_draw_deferred"] += 1
 
     def request_tight_layout(self):
-        """Apply tight layout once after plot content changes."""
+        """Apply layout that fits the current plot content into the canvas.
+
+        Strategy varies by axes type — tight_layout misbehaves with 3-D
+        projections (its math assumes 2-D axes) and clips radial tick labels
+        on polar axes. We pick a layout strategy that suits the active
+        primary axes so plots don't run off the cell on small layouts or
+        after settings changes.
+        """
         if self._disable_tight_layout:
             try:
                 self.draw_idle()
@@ -334,8 +363,22 @@ class PlotCanvas(FigureCanvas):
                 return
             self._last_tight_layout_time = now
 
+        # Detect axes type so we can pick a layout that doesn't clip content
+        # in small / narrow cells (2-D side-by-side, 3-D in a quad grid, etc.).
+        is_3d = False
+        is_polar = False
         try:
-            # Minimal padding to maximize plot area, more margin for labels
+            for a in self.fig.axes:
+                if getattr(a, "name", "") == "3d" or hasattr(a, "get_proj"):
+                    is_3d = True
+                    break
+                if getattr(a, "name", "") == "polar":
+                    is_polar = True
+                    break
+        except Exception:
+            pass
+
+        try:
             import warnings
             with warnings.catch_warnings():
                 warnings.filterwarnings(
@@ -343,7 +386,21 @@ class PlotCanvas(FigureCanvas):
                     message=r".*not compatible with tight_layout.*",
                     category=UserWarning,
                 )
-                self.fig.tight_layout(pad=0.5, rect=[0.06, 0.06, 0.98, 0.98])
+                if is_3d:
+                    # tight_layout warps 3-D bounding boxes — use subplots_adjust
+                    # with generous margins so labels + bbox stay inside the cell.
+                    self.fig.subplots_adjust(
+                        left=0.06, right=0.94, top=0.95, bottom=0.06
+                    )
+                elif is_polar:
+                    # Rose / polar: radial tick labels sit OUTSIDE the axes
+                    # circle — give them breathing room.
+                    self.fig.tight_layout(pad=1.5)
+                else:
+                    # Standard 2-D — drop the prior rect=[0.06,0.06,0.98,0.98]
+                    # constraint so tight_layout can use the full figure area
+                    # when a legend/colorbar/etc. needs more room.
+                    self.fig.tight_layout(pad=0.8)
         except Exception:
             pass
         try:
@@ -2241,12 +2298,16 @@ class PlotWidget(QWidget):
 
         Layer 1 (_apply_axis_theme): aesthetic defaults — white bg, spine shape,
             tick direction, font weight. Lives on PlotCanvas.
-        Layer 2 (_apply_plot_settings): user-facing settings — chosen style
+        Layer 2 (_apply_plot_settings): user-facing settings - chosen format
             (Default/Minimal/Scientific/Publication) and the grid on/off toggle.
             Lives on PlotWidget (has access to main_window).
         """
         from styles.plot_styles import PlotStyles
-        current_style = getattr(self.main_window, 'current_plot_style', 'Default')
+        current_style = getattr(
+            self.main_window,
+            'current_plot_format',
+            getattr(self.main_window, 'current_plot_style', 'Default'),
+        )
         show_grid = bool(getattr(self.main_window, 'show_grid', True))
 
         # Style: typography, spine colour, etc.  Skip for 3D (limited mpl support).
@@ -4954,7 +5015,8 @@ class PlotWidget(QWidget):
         # Map color names to actual colors
         color_map = {
             'blue': Colors.ACCENT_PRIMARY, 'red': '#ff6b6b', 'green': '#4ade80',
-            'purple': '#a78bfa', 'orange': '#fb923c', 'teal': '#818cf8'
+            'purple': '#a78bfa', 'orange': '#fb923c', 'teal': '#818cf8',
+            'grey': '#808080', 'black': '#111827'
         }
         rose_color = color_map.get(rose_color_name, Colors.ACCENT_PRIMARY)
 

@@ -162,8 +162,8 @@ class PlotSidebar(QFrame):
         content_widget = QWidget()
         content_widget.setStyleSheet("QWidget { background-color: transparent; }")
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(12 if metrics.compact else 14, 10 if metrics.compact else 12, 12 if metrics.compact else 14, 10 if metrics.compact else 12)
-        content_layout.setSpacing(4 if metrics.compact else 6)
+        content_layout.setContentsMargins(8 if metrics.compact else 10, 6 if metrics.compact else 8, 8 if metrics.compact else 10, 6 if metrics.compact else 8)
+        content_layout.setSpacing(3 if metrics.compact else 4)
 
         # ── VISUALIZATION section (card style) ──
         viz_section = CardSection("Visualization", icon_name=Icons.EYE, icon_color=Colors.ACCENT_PRIMARY)
@@ -211,13 +211,13 @@ class PlotSidebar(QFrame):
         # ── 2D options (index 0) ──
         self.options_2d = QWidget()
         self.options_2d_layout = QVBoxLayout(self.options_2d)
-        self.options_2d_layout.setContentsMargins(0, 4, 0, 4)
-        self.options_2d_layout.setSpacing(8)
+        self.options_2d_layout.setContentsMargins(0, 0, 0, 0)
+        self.options_2d_layout.setSpacing(3)
 
         colormap_label = QLabel("Colormap:")
         colormap_label.setStyleSheet(self._get_option_label_style())
         self.colormap_2d_combo = self._create_colormap_combo(
-            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues'])
+            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues', 'Greys'])
         self.options_2d_layout.addWidget(colormap_label)
         self.options_2d_layout.addWidget(self.colormap_2d_combo)
 
@@ -261,9 +261,9 @@ class PlotSidebar(QFrame):
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 12px 0 4px 0;
+            padding: 6px 0 3px 0;
             border-top: 1px solid {Colors.BORDER_SUBTLE};
-            margin-top: 8px;
+            margin-top: 4px;
         """)
         self.options_2d_layout.addWidget(planned_header)
 
@@ -283,8 +283,8 @@ class PlotSidebar(QFrame):
         # ── 3D options (index 1) ──
         self.options_3d = QWidget()
         self.options_3d_layout = QVBoxLayout(self.options_3d)
-        self.options_3d_layout.setContentsMargins(0, 4, 0, 4)
-        self.options_3d_layout.setSpacing(8)
+        self.options_3d_layout.setContentsMargins(0, 0, 0, 0)
+        self.options_3d_layout.setSpacing(3)
 
         elev_label = QLabel("Elevation:")
         elev_label.setStyleSheet(self._get_option_label_style())
@@ -317,7 +317,7 @@ class PlotSidebar(QFrame):
         colormap_3d_label = QLabel("Colormap:")
         colormap_3d_label.setStyleSheet(self._get_option_label_style())
         self.colormap_3d_combo = self._create_colormap_combo(
-            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues'])
+            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues', 'Greys'])
         self.options_3d_layout.addWidget(colormap_3d_label)
         self.options_3d_layout.addWidget(self.colormap_3d_combo)
 
@@ -349,9 +349,9 @@ class PlotSidebar(QFrame):
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 12px 0 4px 0;
+            padding: 6px 0 3px 0;
             border-top: 1px solid {Colors.BORDER_SUBTLE};
-            margin-top: 8px;
+            margin-top: 4px;
         """)
         self.options_3d_layout.addWidget(planned_header_3d)
 
@@ -383,8 +383,8 @@ class PlotSidebar(QFrame):
         # ── Vectors options (index 2) ──
         self.options_vectors = QWidget()
         self.options_vectors_layout = QVBoxLayout(self.options_vectors)
-        self.options_vectors_layout.setContentsMargins(0, 4, 0, 4)
-        self.options_vectors_layout.setSpacing(8)
+        self.options_vectors_layout.setContentsMargins(0, 0, 0, 0)
+        self.options_vectors_layout.setSpacing(3)
 
         scale_label = QLabel("Arrow Scale:")
         scale_label.setStyleSheet(self._get_option_label_style())
@@ -417,7 +417,7 @@ class PlotSidebar(QFrame):
         colormap_vectors_label = QLabel("Colormap:")
         colormap_vectors_label.setStyleSheet(self._get_option_label_style())
         self.colormap_vectors_combo = self._create_colormap_combo(
-            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues'])
+            ['viridis', 'plasma', 'turbo', 'coolwarm', 'RdYlBu', 'YlOrRd', 'Blues', 'Greys'])
         self.options_vectors_layout.addWidget(colormap_vectors_label)
         self.options_vectors_layout.addWidget(self.colormap_vectors_combo)
 
@@ -434,9 +434,9 @@ class PlotSidebar(QFrame):
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 12px 0 4px 0;
+            padding: 6px 0 3px 0;
             border-top: 1px solid {Colors.BORDER_SUBTLE};
-            margin-top: 8px;
+            margin-top: 4px;
         """)
         self.options_vectors_layout.addWidget(planned_header_vec)
 
@@ -464,8 +464,8 @@ class PlotSidebar(QFrame):
         # ── Histogram options (index 3) ──
         self.options_histogram = QWidget()
         self.options_histogram_layout = QVBoxLayout(self.options_histogram)
-        self.options_histogram_layout.setContentsMargins(0, 4, 0, 4)
-        self.options_histogram_layout.setSpacing(8)
+        self.options_histogram_layout.setContentsMargins(0, 0, 0, 0)
+        self.options_histogram_layout.setSpacing(3)
 
         bins_label = QLabel("Number of Bins:")
         bins_label.setStyleSheet(self._get_option_label_style())
@@ -537,9 +537,9 @@ class PlotSidebar(QFrame):
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 12px 0 4px 0;
+            padding: 6px 0 3px 0;
             border-top: 1px solid {Colors.BORDER_SUBTLE};
-            margin-top: 8px;
+            margin-top: 4px;
         """)
         self.options_histogram_layout.addWidget(planned_header_hist)
 
@@ -577,8 +577,8 @@ class PlotSidebar(QFrame):
         # ── Rose diagram options (index 4) ──
         self.options_rose = QWidget()
         self.options_rose_layout = QVBoxLayout(self.options_rose)
-        self.options_rose_layout.setContentsMargins(0, 4, 0, 4)
-        self.options_rose_layout.setSpacing(8)
+        self.options_rose_layout.setContentsMargins(0, 0, 0, 0)
+        self.options_rose_layout.setSpacing(3)
 
         # ── Data ──
         rose_mode_label = QLabel("Bar Mode:")
@@ -602,15 +602,15 @@ class PlotSidebar(QFrame):
         _rose_sep_appearance = QLabel("Appearance")
         _rose_sep_appearance.setStyleSheet(
             f"color: {Colors.TEXT_MUTED}; font-size: 9px; font-weight: 700;"
-            f" letter-spacing: 0.4px; padding-top: 6px;"
-            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 4px;"
+            f" letter-spacing: 0.4px; padding-top: 3px;"
+            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 2px;"
         )
         self.options_rose_layout.addWidget(_rose_sep_appearance)
 
         rose_color_label = QLabel("Color:")
         rose_color_label.setStyleSheet(self._get_option_label_style())
         self.rose_color_combo = QComboBox()
-        self.rose_color_combo.addItems(['blue', 'red', 'green', 'purple', 'orange', 'teal'])
+        self.rose_color_combo.addItems(['blue', 'red', 'green', 'purple', 'orange', 'teal', 'grey', 'black'])
         self.rose_color_combo.setStyleSheet(self._get_option_widget_style())
         self.options_rose_layout.addWidget(rose_color_label)
         self.options_rose_layout.addWidget(self.rose_color_combo)
@@ -619,8 +619,8 @@ class PlotSidebar(QFrame):
         _rose_sep_overlays = QLabel("Overlays")
         _rose_sep_overlays.setStyleSheet(
             f"color: {Colors.TEXT_MUTED}; font-size: 9px; font-weight: 700;"
-            f" letter-spacing: 0.4px; padding-top: 6px;"
-            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 4px;"
+            f" letter-spacing: 0.4px; padding-top: 3px;"
+            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 2px;"
         )
         self.options_rose_layout.addWidget(_rose_sep_overlays)
 
@@ -662,8 +662,8 @@ class PlotSidebar(QFrame):
         _rose_sep_stats = QLabel("Statistics")
         _rose_sep_stats.setStyleSheet(
             f"color: {Colors.TEXT_MUTED}; font-size: 9px; font-weight: 700;"
-            f" letter-spacing: 0.4px; padding-top: 6px;"
-            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 4px;"
+            f" letter-spacing: 0.4px; padding-top: 3px;"
+            f" border-top: 1px solid {Colors.BORDER_SUBTLE}; margin-top: 2px;"
         )
         self.options_rose_layout.addWidget(_rose_sep_stats)
 
@@ -679,9 +679,9 @@ class PlotSidebar(QFrame):
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 12px 0 4px 0;
+            padding: 6px 0 3px 0;
             border-top: 1px solid {Colors.BORDER_SUBTLE};
-            margin-top: 8px;
+            margin-top: 4px;
         """)
         self.options_rose_layout.addWidget(planned_header_rose)
 
@@ -1131,9 +1131,9 @@ class PlotSidebar(QFrame):
         return f"""
             QLabel {{
                 color: {Colors.TEXT_SECONDARY};
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: 600;
-                padding: 2px 0px;
+                padding: 0px 0px;
             }}
         """
 
@@ -1142,33 +1142,39 @@ class PlotSidebar(QFrame):
         return f"""
             QLabel {{
                 color: {Colors.TEXT_MUTED};
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: 500;
                 font-style: italic;
-                padding: 2px 0px;
+                padding: 0px 0px;
             }}
         """
 
     def _get_option_widget_style(self):
-        """Get styling for option widgets (combo boxes, spin boxes)."""
+        """Get styling for option widgets (combo boxes, spin boxes).
+
+        Uses BG_ELEVATED + a stronger border so the input fields stand out
+        from the BG_PANEL surface they sit on. Padding kept tight so the
+        sidebar stays compact in a 2×2 grid layout.
+        """
         return f"""
             QComboBox {{
-                background-color: {Colors.BG_SURFACE};
+                background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: 6px;
-                padding: 7px 12px;
-                padding-right: 28px;
+                border: 1px solid {Colors.BORDER_STRONG};
+                border-radius: 5px;
+                padding: 3px 10px;
+                padding-right: 24px;
                 font-size: 11px;
-                min-height: 24px;
+                min-height: 18px;
             }}
             QComboBox:hover {{
+                background-color: {Colors.BG_HOVER};
                 border-color: {Colors.ACCENT_PRIMARY};
             }}
             QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: center right;
-                width: 24px;
+                width: 22px;
                 border: none;
                 background: transparent;
             }}
@@ -1185,7 +1191,7 @@ class PlotSidebar(QFrame):
             QComboBox QAbstractItemView {{
                 background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: 6px;
                 padding: 4px;
                 selection-background-color: {Colors.ACCENT_PRIMARY};
@@ -1194,8 +1200,8 @@ class PlotSidebar(QFrame):
             }}
             QComboBox QAbstractItemView::item {{
                 background-color: {Colors.BG_ELEVATED};
-                padding: 6px 10px;
-                min-height: 22px;
+                padding: 5px 10px;
+                min-height: 20px;
             }}
             QComboBox QAbstractItemView::item:hover {{
                 background-color: {Colors.BG_HOVER};
@@ -1204,16 +1210,17 @@ class PlotSidebar(QFrame):
                 background-color: {Colors.ACCENT_PRIMARY};
             }}
             QSpinBox {{
-                background-color: {Colors.BG_SURFACE};
+                background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
-                border-radius: 6px;
-                padding: 7px 8px;
-                padding-right: 22px;
+                border: 1px solid {Colors.BORDER_STRONG};
+                border-radius: 5px;
+                padding: 3px 8px;
+                padding-right: 20px;
                 font-size: 11px;
-                min-height: 24px;
+                min-height: 18px;
             }}
             QSpinBox:hover {{
+                background-color: {Colors.BG_HOVER};
                 border-color: {Colors.ACCENT_PRIMARY};
             }}
             QSpinBox::up-button, QSpinBox::down-button {{

@@ -1,13 +1,19 @@
 """
-HeadAnalyser V2 - Plot Style Definitions
-Defines visual styles for plots: Default, Minimal, Scientific
+HeadAnalyser V2 - Plot format definitions.
+
+These are formatting presets: fonts, ticks, grids, and spines. Data colors live
+in styles.plot_palettes.
 """
 
 from .colors import Colors
 
 
 class PlotStyles:
-    """Plot style definitions for different visualization modes."""
+    """Plot format definitions for different visualization modes.
+
+    The class name is kept for compatibility with existing code. In user-facing
+    UI these entries should be called formats, not color styles.
+    """
 
     STYLES = {
         "Default": None,
@@ -91,9 +97,14 @@ class PlotStyles:
 
     @classmethod
     def get_style(cls, style_name):
-        """Get style dictionary by name."""
+        """Get format dictionary by name."""
         styles = cls._build_styles()
         return styles.get(style_name, styles["Default"])
+
+    @classmethod
+    def format_names(cls):
+        """Return available plot format keys in display order."""
+        return tuple(cls.STYLES.keys())
 
     @classmethod
     def apply_to_axes(cls, ax, style_name):

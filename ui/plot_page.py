@@ -13,9 +13,10 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QComboBox, QPushButton, QToolButton, QSizePolicy, QStackedWidget,
-    QButtonGroup,
+    QButtonGroup, QMenu,
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QEvent, QTimer, QAbstractAnimation, QPoint
+from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QEvent, QTimer, QAbstractAnimation, QPoint, QRectF, QSize
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QPen
 
 from .plot_widget import PlotWidget
 from .grid_plot_area import GridPlotArea
@@ -526,20 +527,181 @@ class PlotPage(QWidget):
         return self._grid_area.active_plot_widget
 
     def _on_save_cell_state(self) -> None:
-        """Called just before the active cell changes — snapshot sidebar into current cell."""
+        """Called just before the active cell changes.
+
+        Captures the current sidebar/plot-type state AND main_window's per-cell
+        filter/pill state into the cell that's about to lose focus.
+        """
         try:
             cell = self._grid_area.active_cell
             plot_type = normalize_plot_type(self.plot_type_combo.currentText())
             settings = self.plot_sidebar.get_settings_snapshot()
             cell.save_state(plot_type, settings)
+            cell.snapshot_mw_state(self.main_window)
         except Exception:
             pass
+
+    # ── per-cell main_window state plumbing ───────────────────────────────
+    #
+    # The cell owns its own filter inputs (depth/head sliders, exclusions),
+    # filter outputs (filtered_data, triangle_data, gradient_data, etc.) and
+    # pill state. We restore these onto ``main_window`` whenever the cell
+    # becomes active, and snapshot them back to the cell after a pipeline
+    # run. This means every existing consumer (stats panel, report generator,
+    # map, etc.) keeps reading ``main_window.*`` unchanged — they just see
+    # the active cell's view automatically.
+
+    # Maps keys produced by ``PlotSidebar.get_settings_snapshot`` onto the
+    # main_window attributes that ``PlotWidget`` reads at draw time. Some keys
+    # rename across the boundary (sidebar "surface_opacity" → mw "surface_alpha",
+    # "wireframe_overlay" → "show_wireframe", "elevation_3d" → "elevation_3d"
+    # which matches in this snapshot variant). Every entry should correspond to
+    # a real mw attribute — extra keys are harmless (silently skipped).
+    _SETTINGS_TO_MW = {
+        # Viz toggles (Q: not in MW_PILLS because they live in cell.settings)
+        "show_contours":    "show_contours",
+        "show_arrow":       "show_arrow",
+        "show_arrow_label": "show_arrow_label",
+        "show_points":      "show_points",
+        "show_colorbar":    "show_colorbar",
+        "show_id_labels":   "show_id_labels",
+        "fill_contours":    "fill_contours",
+        # 2D
+        "colormap_2d":      "colormap_2d",
+        "point_size":       "point_size",
+        "label_mode_2d":    "label_mode_2d",
+        "contour_levels":   "contour_levels",
+        # 3D
+        "elevation_3d":     "elevation_3d",
+        "azimuth_3d":       "azimuth_3d",
+        "colormap_3d":      "colormap_3d",
+        "surface_opacity":  "surface_alpha",
+        "wireframe_overlay":"show_wireframe",
+        # Vectors
+        "vector_scale":     "vector_scale",
+        "vector_alpha":     "vector_alpha",
+        "colormap_vectors": "colormap_vectors",
+        "show_mean_vector": "show_mean_vector",
+        "normalize_vectors":"normalize_vectors",
+        # Histogram
+        "histogram_bins":         "histogram_bins",
+        "histogram_bar_color":    "histogram_bar_color",
+        "histogram_edge_color":   "histogram_edge_color",
+        "histogram_show_mean":    "histogram_show_mean",
+        "histogram_show_median":  "histogram_show_median",
+        "histogram_show_ci":      "histogram_show_ci",
+        "histogram_ci_level":     "histogram_ci_level",
+        "histogram_show_kde":     "histogram_show_kde",
+        # Rose diagram
+        "rose_mode":               "rose_mode",
+        "rose_bins":               "rose_bins",
+        "rose_show_mean":          "rose_show_mean",
+        "rose_show_weighted_mean": "rose_show_weighted_mean",
+        "rose_show_ci":            "rose_show_ci",
+        "rose_ci_level":           "rose_ci_level",
+        "rose_color":              "rose_color",
+        "rose_show_median":        "rose_show_median",
+        "rose_show_mean_resultant":"rose_show_mean_resultant",
+    }
+
+    def _apply_settings_to_mw(self, settings: dict) -> None:
+        """Push a cell.settings dict onto main_window's sidebar-driven attrs."""
+        if not settings:
+            return
+        mw = self.main_window
+        for sk, mk in self._SETTINGS_TO_MW.items():
+            if sk not in settings:
+                continue
+            try:
+                setattr(mw, mk, settings[sk])
+            except Exception:
+                pass
+
+    def snapshot_mw_to_active_cell(self) -> None:
+        """Capture main_window's current filter state into the active cell."""
+        try:
+            self._grid_area.active_cell.snapshot_mw_state(self.main_window)
+        except Exception:
+            pass
+
+    def apply_active_cell_to_mw(self, *, sync_ui: bool = True) -> None:
+        """Push the active cell's stored state onto main_window and (optionally) the filter UI.
+
+        ``sync_ui=True`` also moves the depth/head sliders and the excluded list
+        to match the cell's filter inputs — silently, so the user's switch
+        does not trigger a pipeline run.
+        """
+        try:
+            cell = self._grid_area.active_cell
+        except Exception:
+            return
+        cell.apply_to_mw(self.main_window)
+        if not sync_ui:
+            return
+        # Properties panel sliders — silent set so we don't trigger filters_changed
+        try:
+            pp = getattr(self.main_window, "properties_panel", None)
+            if pp is not None:
+                ms = cell.mw_state
+                def _resolve(v_lo, v_hi, slider):
+                    """Map (depth/head)_min/max to slider values, falling back to slider bounds."""
+                    try:
+                        bmin, bmax = slider.get_bounds()
+                    except Exception:
+                        return None, None
+                    lo = float(v_lo) if v_lo is not None else float(bmin)
+                    hi = float(v_hi) if v_hi is not None else float(bmax)
+                    return lo, hi
+                # Depth range may be disabled (no depth column) — guard the set call.
+                try:
+                    if pp.depth_range.isEnabled():
+                        lo, hi = _resolve(ms.get("depth_min"), ms.get("depth_max"), pp.depth_range)
+                        if lo is not None:
+                            pp.depth_range.blockSignals(True)
+                            pp.depth_range.set_values(lo, hi)
+                            pp.depth_range.blockSignals(False)
+                except Exception:
+                    pass
+                try:
+                    lo, hi = _resolve(ms.get("head_min"), ms.get("head_max"), pp.head_range)
+                    if lo is not None:
+                        pp.head_range.blockSignals(True)
+                        pp.head_range.set_values(lo, hi)
+                        pp.head_range.blockSignals(False)
+                except Exception:
+                    pass
+                # Excluded-points list reflects main_window.excluded_ids, which
+                # we just rewrote — refresh the visible list.
+                try:
+                    pp.refresh_excluded_list()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _seed_cell_state_if_empty(self, cell) -> None:
+        """For the very first activation, populate the cell from main_window.
+
+        Without this the cell's `_mw_state` is empty and `apply_to_mw` would
+        scribble Nones over a freshly-loaded dataset.
+        """
+        if not cell.mw_state:
+            try:
+                cell.snapshot_mw_state(self.main_window)
+            except Exception:
+                pass
 
     def _on_active_cell_changed(self, idx: int) -> None:
         """Load the newly-active cell's settings into the sidebar and re-render."""
         try:
             cell = self._grid_area.cells[idx]
             mw = self.main_window
+            # First activation of this cell: seed its mw_state from main_window
+            # so apply_to_mw below doesn't clobber a freshly-loaded dataset.
+            self._seed_cell_state_if_empty(cell)
+            # Push cell's filter inputs/outputs + pills onto main_window and
+            # sync the depth/head sliders + excluded list silently.
+            self.apply_active_cell_to_mw(sync_ui=True)
             # Sync main_window.current_plot_type so any subsequent global
             # re-render (legend/grid/compass toggle, etc.) uses the active
             # cell's plot type — not whatever type was last set on the toolbar.
@@ -552,27 +714,113 @@ class PlotPage(QWidget):
             self.plot_type_combo.blockSignals(True)
             self.plot_type_combo.setCurrentText(label)
             self.plot_type_combo.blockSignals(False)
-            # Sync sidebar controls
+            self._sync_visual_composition_controls_from_mw()
+            # Sync sidebar controls + the matching main_window attributes.
+            # update_from_settings blocks signals (so mw isn't touched), so
+            # we also have to push the values manually — otherwise the active
+            # cell renders below with stale sidebar-driven attrs (colormaps,
+            # point size, etc.) inherited from the cell we just left.
             if cell.settings:
                 self.plot_sidebar.update_from_settings(cell.settings)
+                self._apply_settings_to_mw(cell.settings)
             self.plot_sidebar.set_plot_type(cell.plot_type)
+            # Sync toolbar pill checkboxes (silent) to the cell's stored pill state
+            self._sync_pill_checkboxes_from_mw()
             # Sync per-plot-widget state
             pw = cell.plot_widget
             pw.set_hint_plot_type(cell.plot_type)
-            # Re-render the newly-active cell if data is available
+            # Re-render the newly-active cell using its now-active filter state
             data = (
                 getattr(mw, "filtered_plot_data", None)
-                or getattr(mw, "filtered_data", None)
-                or getattr(mw, "data", None)
+                if getattr(mw, "filtered_plot_data", None) is not None else (
+                    getattr(mw, "filtered_data", None)
+                    if getattr(mw, "filtered_data", None) is not None
+                    else getattr(mw, "data", None)
+                )
             )
             if data is not None and not data.empty:
                 pw.update_plot(data, cell.plot_type)
             # Rewire table↔plot selection sync to the new active cell
             self._rebind_table_to_active_cell()
+            # Refresh stats panel + map. update_data_views handles both: it
+            # calls _update_map_view internally AND refreshes stats/report
+            # if the user is currently on that page. Avoid the double-call
+            # so map isn't rebuilt twice on a single chip-driven cell switch.
+            try:
+                if hasattr(mw, "update_data_views"):
+                    mw.update_data_views()
+            except Exception:
+                pass
             # Sync layout preset button highlight
             self._sync_layout_btn_state()
+            # Refresh the status-bar "Showing: Cell N of M" chip so views know
+            # which cell's filter is driving Stats / Map / Report.
+            try:
+                if hasattr(mw, "update_cell_scope_chip"):
+                    mw.update_cell_scope_chip()
+            except Exception:
+                pass
         except Exception:
             pass
+
+    def _sync_pill_checkboxes_from_mw(self) -> None:
+        """Silently push the active cell's pill flags onto the toolbar checkboxes.
+
+        Grid/Legend/Compass live on ``main_window`` (just rewritten by
+        ``apply_active_cell_to_mw``). Dark canvas is a per-PlotWidget flag
+        (``_dark_canvas``), so we read it directly off the active cell's widget.
+        """
+        mw = self.main_window
+        pairs = (
+            (getattr(self, "grid_checkbox", None),    "show_grid"),
+            (getattr(self, "legend_checkbox", None),  "show_legend"),
+            (getattr(self, "compass_checkbox", None), "show_compass"),
+        )
+        for cb, attr in pairs:
+            if cb is None:
+                continue
+            try:
+                cb.blockSignals(True)
+                cb.setChecked(bool(getattr(mw, attr, False)))
+                cb.blockSignals(False)
+            except Exception:
+                pass
+        dark_cb = getattr(self, "dark_canvas_checkbox", None)
+        if dark_cb is not None:
+            try:
+                dark_cb.blockSignals(True)
+                dark_cb.setChecked(bool(getattr(self.plot_widget, "_dark_canvas", False)))
+                dark_cb.blockSignals(False)
+            except Exception:
+                pass
+
+    def _sync_visual_composition_controls_from_mw(self) -> None:
+        """Silently sync format/palette toolbar controls from main_window."""
+        mw = self.main_window
+        pairs = (
+            (
+                getattr(self, "format_combo", None),
+                str(getattr(mw, "current_plot_format", getattr(mw, "current_plot_style", "Default"))),
+            ),
+            (
+                getattr(self, "palette_combo", None),
+                str(getattr(mw, "current_color_style", "hydraulic")),
+            ),
+        )
+        for combo, key in pairs:
+            if combo is None:
+                continue
+            try:
+                combo.blockSignals(True)
+                self._set_combo_current_data(combo, key)
+            except Exception:
+                pass
+            finally:
+                try:
+                    combo.blockSignals(False)
+                except Exception:
+                    pass
+        self._refresh_appearance_button()
 
     def _sync_layout_btn_state(self) -> None:
         """Highlight the correct layout preset button for the current grid preset."""
@@ -588,16 +836,33 @@ class PlotPage(QWidget):
     # ──────────────────────────────────────────────────
 
     def _create_plot_toolbar(self):
-        """Create a compact 46px toolbar for plot controls."""
+        """Create a compact toolbar for plot controls.
+
+        Uses a FlowLayout (instead of QHBoxLayout) so controls wrap to a
+        second row when the window is too narrow to fit them on one line —
+        keeps everything reachable without horizontal clipping.
+        """
+        from .common_widgets import FlowLayout
         metrics = build_screen_metrics(self)
         toolbar = QWidget()
         toolbar.setObjectName("plotToolbar")
-        toolbar.setFixedHeight(metrics.toolbar_height)
+        # Allow the toolbar to grow vertically when items wrap; minimum is one
+        # row, but heightForWidth lets it expand when content needs two rows.
+        toolbar.setMinimumHeight(metrics.toolbar_height)
         toolbar.setStyleSheet(StyleSheet.get_toolbar_compact_style())
+        _sp = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Tell the parent layout that our height depends on our width — this
+        # is what makes a parent QVBoxLayout actually consult heightForWidth
+        # when the toolbar is narrow enough that FlowLayout wraps to 2 rows.
+        _sp.setHeightForWidth(True)
+        toolbar.setSizePolicy(_sp)
 
-        tl = QHBoxLayout(toolbar)
+        tl = FlowLayout(
+            toolbar,
+            hSpacing=5 if metrics.compact else 6,
+            vSpacing=4,
+        )
         tl.setContentsMargins(8 if metrics.compact else 10, 4, 8 if metrics.compact else 10, 4)
-        tl.setSpacing(5 if metrics.compact else 6)
 
         # ── Sidebar toggle (hamburger icon) ──
         self.sidebar_toggle_btn = QToolButton()
@@ -611,8 +876,17 @@ class PlotPage(QWidget):
         tl.addWidget(self._make_divider())
 
         # ── Grid layout preset buttons ──
+        # Use mini-grid icons instead of "1×1"/"1×2" text — more compact,
+        # visually self-explanatory, and matches the toolbar's iconic style.
         self._layout_btns = []
-        _preset_labels = [("1×1", 1), ("1×2", 2), ("2×1", 3), ("2×2", 4), ("1×3", 5)]
+        # (label, rows, cols, preset_idx) — label kept for tooltip only.
+        _preset_specs = [
+            ("1×1", 1, 1, 1),
+            ("1×2", 1, 2, 2),
+            ("2×1", 2, 1, 3),
+            ("2×2", 2, 2, 4),
+            ("1×3", 1, 3, 5),
+        ]
         _current_preset = self._grid_area.current_preset() if hasattr(self, '_grid_area') else 1
         layout_grp = QWidget()
         layout_grp.setObjectName("layoutBtnGroup")
@@ -621,14 +895,17 @@ class PlotPage(QWidget):
         _lg = QHBoxLayout(layout_grp)
         _lg.setContentsMargins(3, 0, 3, 0)
         _lg.setSpacing(2)
-        for _label, _n in _preset_labels:
+        _icon_px = max(12, metrics.toolbar_pill_height - 8)
+        for _label, _rows, _cols, _n in _preset_specs:
             _btn = QToolButton()
-            _btn.setText(_label)
+            _btn.setIcon(self._make_grid_icon(_rows, _cols, _icon_px))
+            _btn.setIconSize(QSize(_icon_px, _icon_px))
             _btn.setToolTip(f"Layout {_label}")
             _btn.setCheckable(True)
             _btn.setChecked(_n == _current_preset)
             _btn.setCursor(Qt.PointingHandCursor)
             _btn.setFixedHeight(metrics.toolbar_pill_height)
+            _btn.setFixedWidth(metrics.toolbar_pill_height + 4)  # square-ish
             _btn.clicked.connect(
                 lambda _checked=False, _preset=_n: self._on_layout_preset_clicked(_preset)
             )
@@ -648,15 +925,19 @@ class PlotPage(QWidget):
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         tl.addWidget(self.plot_type_combo)
 
-        # ── Style combo — driven from PlotStyles.STYLES so new templates appear automatically ──
-        from styles.plot_styles import PlotStyles
-        self.style_combo = QComboBox()
-        self.style_combo.addItems(list(PlotStyles.STYLES.keys()))
-        self.style_combo.setCurrentText(str(getattr(self.main_window, "current_plot_style", "Default")))
-        self.style_combo.setFixedHeight(metrics.toolbar_pill_height)
-        self.style_combo.setMinimumWidth(90)
-        self.style_combo.currentTextChanged.connect(self._on_style_changed)
-        tl.addWidget(self.style_combo)
+        # Appearance menu: template gallery plus compact format/color-style selectors.
+        self.format_combo = None
+        self.palette_combo = None
+        self.style_combo = None
+        self.appearance_btn = QToolButton()
+        self.appearance_btn.setIcon(icon(Icons.PALETTE, color=Colors.TEXT_SECONDARY))
+        self.appearance_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.appearance_btn.setPopupMode(QToolButton.InstantPopup)
+        self.appearance_btn.setCursor(Qt.PointingHandCursor)
+        self.appearance_btn.setFixedHeight(metrics.toolbar_control_height)
+        self.appearance_btn.setToolTip("Templates, color style, and plot format")
+        self._refresh_appearance_button()
+        tl.addWidget(self.appearance_btn)
 
         # ── Divider ──
         tl.addWidget(self._make_divider())
@@ -694,8 +975,10 @@ class PlotPage(QWidget):
             lambda checked: self._on_compass_changed(Qt.Checked if checked else Qt.Unchecked))
         self.dark_canvas_checkbox.toggled.connect(self._on_dark_canvas_changed)
 
-        # ── Spacer ──
-        tl.addStretch()
+        # FlowLayout can't honor addStretch (no concept of "expanding spacer"
+        # when items wrap). Use a visual divider instead to separate primary
+        # controls from secondary actions; items just flow left-to-right.
+        tl.addWidget(self._make_divider())
 
         # ── Drawer toggles ──
         self.table_toggle_btn = QToolButton()
@@ -751,13 +1034,6 @@ class PlotPage(QWidget):
         export_btn.clicked.connect(self.main_window.on_export)
         ag_layout.addWidget(export_btn)
 
-        template_btn = QToolButton()
-        template_btn.setIcon(icon(Icons.PALETTE, color=Colors.TEXT_SECONDARY))
-        template_btn.setToolTip("Plot templates")
-        template_btn.setFixedSize(metrics.toolbar_small_button_width, metrics.toolbar_small_button_height)
-        template_btn.clicked.connect(self.main_window.on_plot_template_picker)
-        ag_layout.addWidget(template_btn)
-
         self.settings_btn = QToolButton()
         self.settings_btn.setIcon(icon(Icons.SETTINGS, color=Colors.TEXT_SECONDARY))
         self.settings_btn.setToolTip("Plot settings")
@@ -806,6 +1082,124 @@ class PlotPage(QWidget):
         d.setFixedHeight(max(16, metrics.toolbar_control_height - 12))
         d.setStyleSheet(f"background-color: {Colors.BORDER_MEDIUM}; max-width: 1px; border: none;")
         return d
+
+    @staticmethod
+    def _make_grid_icon(rows: int, cols: int, size: int = 14) -> QIcon:
+        """Render a tiny ``rows × cols`` grid pattern as a QIcon for toolbar use.
+
+        Used by the layout preset buttons (1×1, 1×2, 2×1, 2×2, 1×3) to visually
+        represent each layout without needing text. Outline rectangles draw
+        cleanly at small sizes; the inner gap separates cells.
+        """
+        size = int(max(10, size))
+        pix = QPixmap(size, size)
+        pix.fill(Qt.transparent)
+        painter = QPainter(pix)
+        try:
+            painter.setRenderHint(QPainter.Antialiasing, False)
+            pen = QPen(QColor(Colors.TEXT_PRIMARY))
+            pen.setWidth(1)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            # 1-px margin so the outline doesn't clip on the pixmap edge,
+            # 1-px gap between cells.
+            margin = 1.0
+            gap = 1.0
+            inner_w = size - 2 * margin
+            inner_h = size - 2 * margin
+            cell_w = (inner_w - gap * (cols - 1)) / cols
+            cell_h = (inner_h - gap * (rows - 1)) / rows
+            for r in range(rows):
+                for c in range(cols):
+                    x = margin + c * (cell_w + gap)
+                    y = margin + r * (cell_h + gap)
+                    painter.drawRect(QRectF(x, y, cell_w, cell_h))
+        finally:
+            painter.end()
+        return QIcon(pix)
+
+    @staticmethod
+    def _set_combo_current_data(combo: QComboBox, key: str) -> None:
+        idx = combo.findData(key)
+        if idx < 0:
+            idx = combo.findText(str(key))
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+
+    @staticmethod
+    def _combo_data(combo: QComboBox, fallback: str = "") -> str:
+        data = combo.currentData()
+        return str(data if data is not None else (combo.currentText() or fallback))
+
+    def _refresh_appearance_button(self) -> None:
+        btn = getattr(self, "appearance_btn", None)
+        if btn is None:
+            return
+        try:
+            from styles.plot_palettes import get_palette
+            fmt = str(getattr(
+                self.main_window,
+                "current_plot_format",
+                getattr(self.main_window, "current_plot_style", "Default"),
+            ))
+            palette = get_palette(getattr(self.main_window, "current_color_style", "hydraulic"))
+            btn.setText(f"Templates  {palette.name} / {fmt}")
+            btn.setMenu(self._build_appearance_menu())
+        except Exception:
+            btn.setText("Templates")
+
+    def _build_appearance_menu(self) -> QMenu:
+        from styles.plot_palettes import all_palettes
+        from styles.plot_styles import PlotStyles
+
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                color: {Colors.TEXT_SECONDARY};
+                background: {Colors.BG_PANEL};
+                border: 1px solid {Colors.BORDER_DEFAULT};
+                padding: 6px;
+            }}
+            QMenu::item {{
+                padding: 6px 26px 6px 10px;
+                border-radius: 6px;
+                font-size: 11px;
+            }}
+            QMenu::item:selected {{
+                color: {Colors.TEXT_PRIMARY};
+                background: {Colors.BG_HOVER};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: {Colors.BORDER_SUBTLE};
+                margin: 6px 4px;
+            }}
+        """)
+        gallery = menu.addAction("Template Gallery...")
+        gallery.triggered.connect(self.main_window.on_plot_template_picker)
+        menu.addSeparator()
+
+        menu.addSection("Format")
+        current_format = str(getattr(
+            self.main_window,
+            "current_plot_format",
+            getattr(self.main_window, "current_plot_style", "Default"),
+        ))
+        for format_key in PlotStyles.format_names():
+            action = menu.addAction(format_key)
+            action.setCheckable(True)
+            action.setChecked(format_key == current_format)
+            action.triggered.connect(lambda _checked=False, key=format_key: self._on_style_changed(key))
+        menu.addSeparator()
+
+        menu.addSection("Color Style")
+        current_palette = str(getattr(self.main_window, "current_color_style", "hydraulic"))
+        for palette in all_palettes(include_custom=True):
+            action = menu.addAction(palette.name)
+            action.setCheckable(True)
+            action.setChecked(palette.key == current_palette)
+            action.triggered.connect(lambda _checked=False, key=palette.key: self._apply_palette_key(key))
+        return menu
 
     def _make_pill_toggle(self, text: str, tooltip: str, checked: bool, icon_name: str = None):
         """Create a pill-style toggle button for the pill group."""
@@ -1534,46 +1928,126 @@ class PlotPage(QWidget):
             current_type = self._grid_area.active_cell.plot_type
             self.plot_widget.update_plot(data, current_type)
 
+    def _save_active_cell_pill(self, attr: str, value: bool) -> None:
+        """Persist a single pill flag onto the active cell's stored mw_state."""
+        try:
+            cell = self._grid_area.active_cell
+            if not cell.mw_state:
+                cell.snapshot_mw_state(self.main_window)
+            cell.mw_state[attr] = bool(value)
+        except Exception:
+            pass
+
     def _on_grid_changed(self, state):
-        self.main_window.show_grid = (state == Qt.Checked)
+        v = (state == Qt.Checked)
+        self.main_window.show_grid = v
+        self._save_active_cell_pill("show_grid", v)
         self.main_window.update_plot()
 
     def _on_legend_changed(self, state):
-        self.main_window.show_legend = (state == Qt.Checked)
+        v = (state == Qt.Checked)
+        self.main_window.show_legend = v
+        self._save_active_cell_pill("show_legend", v)
         self.main_window.update_plot()
 
     def _on_compass_changed(self, state):
-        self.main_window.show_compass = (state == Qt.Checked)
+        v = (state == Qt.Checked)
+        self.main_window.show_compass = v
+        self._save_active_cell_pill("show_compass", v)
         self.main_window.update_plot()
 
     def _on_dark_canvas_changed(self, checked: bool):
-        self.plot_widget.set_dark_canvas(checked)
+        # Dark canvas lives on each PlotWidget (``_dark_canvas``) — per-cell by
+        # construction. Just flip the active cell's widget; other cells keep
+        # whatever dark state they had.
+        self.plot_widget.set_dark_canvas(bool(checked))
+        self.main_window.update_plot()
+
+    def _save_active_cell_visual_composition(self) -> None:
+        try:
+            cell = self._grid_area.active_cell
+            if not cell.mw_state:
+                cell.snapshot_mw_state(self.main_window)
+            for key in (
+                "current_plot_template",
+                "current_color_style",
+                "current_plot_format",
+                "current_plot_style",
+                "current_popup_style",
+                "colormap_2d",
+                "colormap_3d",
+                "colormap_vectors",
+                "histogram_bar_color",
+                "histogram_edge_color",
+                "rose_color",
+                "id_label_color",
+                "head_label_color",
+                "arrow_color",
+            ):
+                cell.mw_state[key] = getattr(self.main_window, key, None)
+            cell.save_state(cell.plot_type, self.plot_sidebar.get_settings_snapshot())
+        except Exception:
+            pass
+
+    def _persist_visual_composition_to_dataset(self) -> None:
+        try:
+            dataset = self.main_window.get_active_dataset()
+            if dataset is not None:
+                self.main_window.sync_to_dataset(dataset)
+        except Exception:
+            pass
+
+    def _on_format_combo_changed(self, _idx: int):
+        format_key = self._combo_data(getattr(self, "format_combo", None), "Default")
+        self._on_style_changed(format_key)
+
+    def _on_palette_combo_changed(self, _idx: int):
+        combo = getattr(self, "palette_combo", None)
+        if combo is None:
+            return
+        self._apply_palette_key(self._combo_data(combo, "hydraulic"))
+
+    def _apply_palette_key(self, palette_key: str):
+        from styles.plot_palettes import apply_palette_to_target
+
+        settings = apply_palette_to_target(self.main_window, palette_key, self.main_window.current_plot_type).settings_for(
+            self.main_window.current_plot_type
+        )
+        self.plot_sidebar.update_from_settings(settings)
+        self._save_active_cell_visual_composition()
+        self._persist_visual_composition_to_dataset()
+        self._refresh_appearance_button()
         self.main_window.update_plot()
 
     def _on_style_changed(self, style_name):
+        # Compatibility handler: "style" now means plot format.
+        self.main_window.current_plot_format = style_name
         self.main_window.current_plot_style = style_name
+        self._save_active_cell_visual_composition()
+        self._persist_visual_composition_to_dataset()
+        self._refresh_appearance_button()
         self.main_window.update_plot()
 
     def _on_layout_preset_clicked(self, preset: int) -> None:
         """Switch the grid to a new layout preset and update button state."""
-        # Snapshot the current sidebar into the active cell before the rebuild,
-        # so we don't lose its tweaks when the layout changes.
+        # Snapshot the current sidebar AND mw_state into the active cell before
+        # the rebuild — set_layout_preset will use this as the inheritance seed
+        # for any newly-introduced cells.
         self._on_save_cell_state()
         self._grid_area.set_layout_preset(preset)
-        # Render every cell with the current dataset so newly-added cells
-        # don't show "No data loaded".
-        mw = self.main_window
-        data = getattr(mw, "filtered_plot_data", None)
-        if data is None:
-            data = getattr(mw, "filtered_data", None)
-        if data is None:
-            data = getattr(mw, "data", None)
-        if data is not None and not data.empty:
-            for cell in self._grid_area.cells:
-                try:
-                    cell.plot_widget.update_plot(data, cell.plot_type)
-                except Exception:
-                    pass
+        # Route through main_window.update_plot so the multi-cell render swap
+        # fires; each cell renders with its own (just-inherited) mw_state.
+        try:
+            self.main_window.update_plot()
+        except Exception:
+            pass
+        # Layout count changed — refresh the cell scope chip (it hides itself
+        # for 1×1 layouts and shows "of M" with the new total otherwise).
+        try:
+            if hasattr(self.main_window, "update_cell_scope_chip"):
+                self.main_window.update_cell_scope_chip()
+        except Exception:
+            pass
         self._sync_layout_btn_state()
 
     # ──────────────────────────────────────────────────
@@ -1581,15 +2055,20 @@ class PlotPage(QWidget):
     # ──────────────────────────────────────────────────
 
     def update_plot(self, data, plot_type):
-        """Render every grid cell.
+        """Render every grid cell using its own filter + pill state.
 
-        The active cell adopts ``plot_type`` (so toolbar "switch to X" still
-        works); inactive cells re-render with their own stored ``plot_type``.
-        Toolbar pills (Legend/Grid/Compass/Dark) remain global state on
-        ``main_window`` — all cells read those same flags at draw time, so
-        toggling a pill is now visible on every cell, not just the active one.
+        For each cell we temporarily swap main_window's per-cell attributes
+        (filter inputs/outputs + Legend/Grid/Compass/Dark flags) to that
+        cell's stored values, render, then restore the active cell's state.
+        This keeps every existing draw-time consumer (PlotWidget reads
+        ``main_window.show_legend``, ``filtered_plot_data``, etc.) correct
+        per cell without any changes to those consumers.
+
+        The active cell adopts the incoming ``plot_type`` argument so the
+        toolbar "switch to X" path keeps working.
         """
         _perf = self._perf_tic("PlotPage.update_plot")
+        mw = self.main_window
         # Persist the requested type on the active cell so the next cell-switch
         # / repaint uses it (matches how _on_plot_type_changed normally records it).
         try:
@@ -1597,11 +2076,76 @@ class PlotPage(QWidget):
             active.save_state(plot_type, active.settings)
         except Exception:
             pass
-        # Render each cell in its own plot_type. Single-cell layouts trivially
-        # render once (active cell only), preserving prior perf.
-        for cell in self._grid_area.cells:
+        # Capture mw's current per-cell state. After we render each cell we'll
+        # restore from this snapshot so any consumer that runs after update_plot
+        # (stats, map, etc.) sees the active cell's view.
+        active_snapshot = {}
+        try:
+            for key in self._grid_area.active_cell.MW_KEYS:
+                v = getattr(mw, key, None)
+                if isinstance(v, set):
+                    v = set(v)
+                active_snapshot[key] = v
+        except Exception:
+            active_snapshot = {}
+        # Render each cell in its own plot_type with its own mw_state swapped in.
+        try:
+            cells = self._grid_area.cells
+        except Exception:
+            cells = []
+        # Snapshot the *sidebar-driven* mw attributes too (colormaps, point
+        # size, contour levels, etc.) so we can restore them after the loop.
+        active_settings_snapshot = {}
+        try:
+            for sk, mk in self._SETTINGS_TO_MW.items():
+                if hasattr(mw, mk):
+                    active_settings_snapshot[mk] = getattr(mw, mk)
+        except Exception:
+            active_settings_snapshot = {}
+        # Render INACTIVE cells first, swapping mw to each cell's stored state.
+        # Then restore active state and render the active cell LAST. This avoids
+        # overwriting mw with stale ``cell.settings`` for the active cell — its
+        # settings dict is only refreshed on switch-away, so user edits made
+        # since the last switch live ONLY on ``mw``, not in ``cell.settings``.
+        active_cell = None
+        try:
+            active_cell = self._grid_area.active_cell
+        except Exception:
+            active_cell = None
+        for cell in cells:
+            if cell is active_cell:
+                continue
             try:
-                cell.plot_widget.update_plot(data, cell.plot_type)
+                if cell.mw_state:
+                    cell.apply_to_mw(mw)
+                if cell.settings:
+                    self._apply_settings_to_mw(cell.settings)
+                cell_data = getattr(mw, "filtered_plot_data", None)
+                if cell_data is None or getattr(cell_data, "empty", True):
+                    cell_data = getattr(mw, "filtered_data", None)
+                if cell_data is None or getattr(cell_data, "empty", True):
+                    cell_data = data
+                cell.plot_widget.update_plot(cell_data, cell.plot_type)
+            except Exception:
+                pass
+        # Restore mw to active cell's working state (the snapshot taken at the
+        # top of update_plot — i.e. what the user sees in the sidebar/sliders
+        # right now). All subsequent reads of mw will see this.
+        for key, v in active_snapshot.items():
+            try: setattr(mw, key, v)
+            except Exception: pass
+        for key, v in active_settings_snapshot.items():
+            try: setattr(mw, key, v)
+            except Exception: pass
+        # Render the active cell last, using mw's current (live-edited) state.
+        if active_cell is not None:
+            try:
+                cell_data = getattr(mw, "filtered_plot_data", None)
+                if cell_data is None or getattr(cell_data, "empty", True):
+                    cell_data = getattr(mw, "filtered_data", None)
+                if cell_data is None or getattr(cell_data, "empty", True):
+                    cell_data = data
+                active_cell.plot_widget.update_plot(cell_data, active_cell.plot_type)
             except Exception:
                 pass
         if getattr(self, "quick_stats_btn", None) is not None and self.quick_stats_btn.isChecked():

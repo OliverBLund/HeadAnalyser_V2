@@ -9,8 +9,9 @@ can import the same building blocks.
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QSizePolicy, QPushButton, QToolButton, QGraphicsDropShadowEffect,
+    QLayout, QStyle,
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QPoint, QRect
 from PyQt5.QtGui import QPainter, QPen
 
 from styles.colors import Colors
@@ -428,27 +429,32 @@ class CardSection(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Card container
+        # Card container — give the QFrame itself a stylesheet name so we can
+        # target ONLY the outer border, and not have border-radius bleed into
+        # the body's QLabel children. Setting padding via the stylesheet (in
+        # addition to layout margins) guarantees the QFrame's content area is
+        # inset from the border by the same amount on every theme.
         self._card = QFrame()
+        self._card.setObjectName("cardSection")
         self._card.setStyleSheet(f"""
-            QFrame {{
+            QFrame#cardSection {{
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER_DEFAULT};
-                border-radius: 4px;
+                border-radius: 6px;
             }}
         """)
         card_layout = QVBoxLayout(self._card)
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.setSpacing(0)
 
-        # Header (clickable)
+        # Header (clickable) — slim 22px bar to keep the section title compact.
         self._header = QWidget()
         self._header.setObjectName("card_section_header")
-        self._header.setFixedHeight(28)
+        self._header.setFixedHeight(22)
         self._header.setCursor(Qt.PointingHandCursor)
         self._header.mousePressEvent = lambda e: self.toggle_section()
         header_layout = QHBoxLayout(self._header)
-        header_layout.setContentsMargins(10, 0, 10, 0)
+        header_layout.setContentsMargins(12, 0, 10, 0)
         header_layout.setSpacing(8)
 
         # 2px accent bar (colour-coded by section type)
@@ -494,16 +500,24 @@ class CardSection(QWidget):
 
         card_layout.addWidget(self._header)
 
-        # Content body
+        # Content body — generous horizontal padding so combos / spinboxes
+        # have visible breathing room from the card border. Vertical kept
+        # tight so the sidebar stays dense.
+        # We use BOTH layout margins AND stylesheet padding: Qt5's QFrame
+        # stylesheet with border can sometimes ignore the children's layout
+        # margins, especially when a child has its own stylesheet. Setting
+        # padding on the body via QSS makes the inset explicit at the paint
+        # level so child widgets actually sit inset from the card border.
         self._body = QWidget()
         self._body.setObjectName("cardBody")
         self._body_layout = QVBoxLayout(self._body)
-        self._body_layout.setContentsMargins(10, 8, 10, 10)
-        self._body_layout.setSpacing(8)
+        self._body_layout.setContentsMargins(0, 0, 0, 0)
+        self._body_layout.setSpacing(4)
         self._body.setStyleSheet(f"""
             QWidget#cardBody {{
                 background-color: transparent;
                 border-top: 1px solid {Colors.BORDER_SUBTLE};
+                padding: 8px 14px 10px 14px;
             }}
             QWidget#cardBody QLabel {{
                 background-color: transparent;
@@ -544,3 +558,87 @@ class CardSection(QWidget):
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {Colors.BORDER_SUBTLE}; border: none;")
         self._body_layout.addWidget(sep)
+
+
+class FlowLayout(QLayout):
+    """Left-to-right layout that wraps to a new row when items don't fit.
+
+    Used by the plot toolbar so narrow windows don't clip controls — items
+    flow to a second row instead. Modelled on Qt's official FlowLayout
+    example but PyQt5-flavoured and without an internal margin (the caller
+    sets contentsMargins directly).
+    """
+
+    def __init__(self, parent=None, hSpacing: int = 6, vSpacing: int = 4):
+        super().__init__(parent)
+        self._items = []
+        self._h_spacing = hSpacing
+        self._v_spacing = vSpacing
+        if parent is not None:
+            self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientations(Qt.Orientation(0))
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(
+            margins.left() + margins.right(),
+            margins.top() + margins.bottom(),
+        )
+        return size
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
+        margins = self.contentsMargins()
+        effective = rect.adjusted(
+            margins.left(), margins.top(),
+            -margins.right(), -margins.bottom(),
+        )
+        x = effective.x()
+        y = effective.y()
+        line_height = 0
+        for item in self._items:
+            hint = item.sizeHint()
+            next_x = x + hint.width() + self._h_spacing
+            if next_x - self._h_spacing > effective.right() and line_height > 0:
+                x = effective.x()
+                y = y + line_height + self._v_spacing
+                next_x = x + hint.width() + self._h_spacing
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x = next_x
+            line_height = max(line_height, hint.height())
+        return y + line_height - rect.y() + margins.bottom()

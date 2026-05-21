@@ -148,14 +148,14 @@ def build_screen_metrics(widget: QWidget | None = None) -> ScreenMetrics:
     drawer_header_height = _clamp_int(31 * chrome_scale, 26, 35)
 
     properties_width = _clamp_int(width * 0.22, 250, 340)
-    plot_sidebar_width = _clamp_int(width * 0.24, 248, 360)
+    plot_sidebar_width = _clamp_int(width * 0.16, 200, 260)
 
     statusbar_height = _clamp_int(30 * chrome_scale, 24, 34)
     status_coords_width = _clamp_int(128 * chrome_scale, 112, 176)
     status_separator_height = _clamp_int(13 * chrome_scale, 10, 17)
 
     value_label_width = _clamp_int(96 * chrome_scale, 84, 124)
-    title_header_height = _clamp_int(44 * chrome_scale, 42, 52)
+    title_header_height = _clamp_int(36 * chrome_scale, 32, 44)
     about_badge_width = _clamp_int(68 * chrome_scale, 58, 84)
 
     min_window_width = _screen_bound(960, 1180, width)

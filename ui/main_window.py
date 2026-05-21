@@ -60,6 +60,8 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
     _DATASET_EXTRA_OPTION_ATTRS = (
         "show_legend",
         "current_plot_template",
+        "current_color_style",
+        "current_plot_format",
         "current_plot_style",
         "current_popup_style",
         "show_points",
@@ -191,12 +193,14 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.show_grid = False
         self.show_legend = False
         self.current_plot_template = "hydraulic_field"
+        self.current_color_style = "hydraulic"
+        self.current_plot_format = "Default"
         self.current_plot_style = "Default"
         self.current_popup_style = "Clean"
 
         # Plot-specific options
         # 2D plot options
-        self.colormap_2d = 'viridis'
+        self.colormap_2d = 'turbo'
         self.point_size = 80
         # Point glow effect settings (2D plot)
         self.show_point_glow = True
@@ -210,7 +214,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         # 3D plot options
         self.elevation_3d = 30
         self.azimuth_3d = 45
-        self.colormap_3d = 'viridis'
+        self.colormap_3d = 'turbo'
         # Vector plot options
         # Note: Matplotlib quiver uses an inverse scale (smaller value => longer arrows).
         self.vector_scale = 5.0
@@ -220,7 +224,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.normalize_vectors = False
         # Histogram options
         self.histogram_bins = 30
-        self.histogram_bar_color = 'grey'
+        self.histogram_bar_color = 'teal'
         self.histogram_edge_color = 'black'
         self.histogram_show_mean = False
         self.histogram_show_median = False
@@ -236,7 +240,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.rose_ci_level = 95
         self.rose_ci_resamples = 200
         self.rose_mode = 'count'
-        self.rose_color = 'blue'
+        self.rose_color = 'teal'
         self.rose_show_mean_resultant = True
         self.rose_show_median = False
 
@@ -430,6 +434,15 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self._gradient_future = self._gradient_executor.submit(
             MainWindow._run_gradient_compute_job, calc, calc_ctx, data_snapshot
         )
+        # Identify the cell whose filter inputs produced this snapshot so that
+        # when the result lands later, we route it to the right cell (the user
+        # may have switched cells while the job was running).
+        target_cell = None
+        try:
+            if hasattr(dataset, "plot_page"):
+                target_cell = dataset.plot_page._grid_area.active_cell
+        except Exception:
+            target_cell = None
         self._gradient_future_meta = {
             "dataset_id": dataset_id,
             "dataset_name": str(getattr(dataset, "name", dataset_id)),
@@ -437,6 +450,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             "version": int(version),
             "started": time.perf_counter(),
             "point_count": int(len(data_snapshot)),
+            "target_cell": target_cell,
         }
         self._gradient_poll_timer.start()
         self._perf_log(
@@ -497,14 +511,62 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                 dataset.rejected_due_to_triangle_quality = result.get("rejected_due_to_triangle_quality")
                 dataset.rejected_due_to_calculation_failed = result.get("rejected_due_to_calculation_failed")
 
+                # Route the freshly-computed gradient outputs to the cell that
+                # initiated this job. If that cell is no longer active, only
+                # update its stored state (main_window stays on the active cell).
+                # In *global* filter mode, broadcast to every grid cell — they
+                # all share the same filter so the same gradient applies.
+                target_cell = meta.get("target_cell")
+                target_cells = []
+                if target_cell is not None:
+                    target_cells.append(target_cell)
+                if self._filter_scope_is_global() and hasattr(dataset, "plot_page"):
+                    try:
+                        for c in dataset.plot_page._grid_area.cells:
+                            if c not in target_cells:
+                                target_cells.append(c)
+                    except Exception:
+                        pass
+                for tcell in target_cells:
+                    try:
+                        ms = tcell.mw_state
+                        if not ms:
+                            ms = {}
+                            tcell._mw_state = ms
+                        ms["triangle_data"] = dataset.triangle_data
+                        ms["gradient_data"] = dataset.gradient_data
+                        ms["rejected_data"] = dataset.rejected_data
+                        ms["total_triangles"] = dataset.total_triangles
+                        ms["rejected_due_to_uncertainty"] = dataset.rejected_due_to_uncertainty
+                        ms["rejected_due_to_triangle_quality"] = dataset.rejected_due_to_triangle_quality
+                        ms["rejected_due_to_calculation_failed"] = dataset.rejected_due_to_calculation_failed
+                    except Exception:
+                        pass
+
                 if dataset is self.get_active_dataset():
-                    self.sync_from_dataset(dataset)
-                    self.update_status(
-                        num_points=len(self.filtered_data) if self.filtered_data is not None else 0,
-                        num_triangles=len(self.triangle_data) if self.triangle_data is not None else 0,
-                    )
-                    self.update_plot()
-                    self._update_map_view(force=False)
+                    # Only propagate to main_window if the target cell is still
+                    # the active one — otherwise the user has switched cells
+                    # and the gradient belongs to a now-inactive cell.
+                    active_cell = None
+                    try:
+                        active_cell = dataset.plot_page._grid_area.active_cell
+                    except Exception:
+                        active_cell = None
+                    routes_to_active = (target_cell is None or target_cell is active_cell)
+                    if routes_to_active:
+                        self.sync_from_dataset(dataset)
+                        self.update_status(
+                            num_points=len(self.filtered_data) if self.filtered_data is not None else 0,
+                            num_triangles=len(self.triangle_data) if self.triangle_data is not None else 0,
+                        )
+                        self.update_plot()
+                        self._update_map_view(force=False)
+                    else:
+                        # Active cell unchanged at the main_window level, but the
+                        # target cell's stored outputs were updated above. Trigger
+                        # a re-render so the inactive cell picks up its new
+                        # triangles next time we paint the grid.
+                        self.update_plot()
                     try:
                         if hasattr(dataset, "page_stack") and dataset.page_stack.currentIndex() == 2:
                             dataset.statistics_panel.update_statistics(self)
@@ -552,9 +614,20 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self._run_filter_pipeline(depth_min, depth_max, head_min, head_max, reason="refilter")
 
     def _run_filter_pipeline(self, depth_min, depth_max, head_min, head_max, *, reason="filters"):
-        """Single centralized path for applying filters/exclusions and refreshing all views."""
+        """Single centralized path for applying filters/exclusions and refreshing all views.
+
+        After the pipeline writes its results onto ``self`` (filtered_data,
+        triangle_data, etc.), we snapshot them onto the *active* grid cell so
+        the cell's stored state stays in sync with what the user just produced.
+        Filter inputs (depth/head/exclusions) are persisted to the active cell
+        BEFORE running the pipeline — that way an in-flight async gradient
+        job can later be matched to the cell whose inputs produced it.
+        """
         if self.data is None:
             return
+        # Persist the filter inputs onto the active cell up front. This stays
+        # robust even if the user switches cells while gradients are computing.
+        self._persist_filter_inputs_to_active_cell(depth_min, depth_max, head_min, head_max)
         self.clear_triangle_selection()
         self.file_handler.filter_data(
             depth_min,
@@ -563,9 +636,134 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             head_max,
             async_gradients=self._async_gradient_enabled,
         )
+        # Snapshot synchronous outputs (filtered_data, plot_data, and — when
+        # synchronous gradients are in use — triangle_data) to the active cell.
+        # Async gradient results land later via _poll_gradient_future and are
+        # snapshotted there.
+        self._snapshot_mw_to_active_cell()
         self.update_plot()
         self.update_data_views()
         self.properties_panel.refresh_excluded_list()
+
+    def _filter_scope_is_global(self) -> bool:
+        """Return True when filter changes should broadcast to all grid cells."""
+        try:
+            return bool(self.properties_panel.is_filter_scope_global())
+        except Exception:
+            return True
+
+    def update_cell_scope_chip(self) -> None:
+        """Refresh the status-bar chip that tells the user which cell's filter
+        is driving the Stats / Map / Report views.
+
+        Visible only when we're in per-cell filter mode AND the active grid
+        has more than one cell. Hidden in global mode (all cells share state)
+        or in 1×1 layouts (no choice to indicate).
+
+        Also rebuilds the chip's popup menu so the user can switch active
+        cell directly from any view (Stats / Map / Report) without having
+        to navigate back to the plot grid first.
+        """
+        chip = getattr(self, "status_cell_scope_chip", None)
+        if chip is None:
+            return
+        try:
+            ds = self.get_active_dataset()
+            if ds is None or not hasattr(ds, "plot_page"):
+                chip.hide()
+                return
+            if self._filter_scope_is_global():
+                chip.hide()
+                return
+            grid = ds.plot_page._grid_area
+            cells = grid.cells
+            if len(cells) <= 1:
+                chip.hide()
+                return
+            active_idx = next((i for i, c in enumerate(cells) if c is grid.active_cell), 0)
+            chip.setText(f"Showing: Cell {active_idx + 1} of {len(cells)}  ▾")
+            # Build the cell-selection menu (regenerate every time so it
+            # reflects the current cell count + which one is active).
+            from PyQt5.QtWidgets import QMenu
+            menu = QMenu(chip)
+            for i, cell in enumerate(cells):
+                label = f"Cell {i + 1}  •  {cell.plot_type}"
+                if i == active_idx:
+                    label = f"●  {label}"
+                act = menu.addAction(label)
+                # Use default-arg capture so each lambda binds its own index.
+                act.triggered.connect(lambda _checked=False, idx=i: self._on_cell_scope_chip_select(idx))
+            chip.setMenu(menu)
+            chip.show()
+        except Exception:
+            try: chip.hide()
+            except Exception: pass
+
+    def _on_cell_scope_chip_select(self, idx: int) -> None:
+        """User picked a cell from the status-bar chip menu — activate it.
+
+        Reuses the grid's own activation path so all existing logic fires
+        (save/restore state, rebind table signals, refresh map/stats, etc.).
+        """
+        try:
+            ds = self.get_active_dataset()
+            if ds is None or not hasattr(ds, "plot_page"):
+                return
+            grid = ds.plot_page._grid_area
+            if 0 <= idx < len(grid.cells):
+                # Calling the internal _on_activated runs the full save→switch→
+                # active_cell_changed signal chain (same as a real cell click).
+                grid._on_activated(idx)
+        except Exception:
+            pass
+
+    def _target_cells_for_filter(self):
+        """Cells the filter pipeline should write to — all when global, just active otherwise."""
+        try:
+            ds = self.get_active_dataset()
+            if ds is None or not hasattr(ds, "plot_page"):
+                return []
+            grid = ds.plot_page._grid_area
+            return grid.cells if self._filter_scope_is_global() else [grid.active_cell]
+        except Exception:
+            return []
+
+    def _persist_filter_inputs_to_active_cell(self, depth_min, depth_max, head_min, head_max):
+        """Update the target cells' stored filter inputs (called pre-pipeline).
+
+        In global mode this writes to every grid cell so the same filter is
+        applied uniformly. In per-cell mode it only writes to the active cell,
+        leaving the other cells' stored filters untouched.
+        """
+        try:
+            cells = self._target_cells_for_filter()
+            excl_ids = set(getattr(self, "excluded_ids", set()) or set())
+            excl_keys = set(getattr(self, "excluded_member_keys", set()) or set())
+            for cell in cells:
+                if not cell.mw_state:
+                    cell.snapshot_mw_state(self)
+                cell.mw_state["depth_min"] = depth_min
+                cell.mw_state["depth_max"] = depth_max
+                cell.mw_state["head_min"] = head_min
+                cell.mw_state["head_max"] = head_max
+                cell.mw_state["excluded_ids"] = set(excl_ids)
+                cell.mw_state["excluded_member_keys"] = set(excl_keys)
+        except Exception:
+            pass
+
+    def _snapshot_mw_to_active_cell(self):
+        """Capture main_window's per-cell state to the target cells.
+
+        In global mode this snapshots to every grid cell so they share the
+        same filter outputs (and the next multi-cell render shows the same
+        thing everywhere). In per-cell mode only the active cell is updated.
+        """
+        try:
+            cells = self._target_cells_for_filter()
+            for cell in cells:
+                cell.snapshot_mw_state(self)
+        except Exception:
+            pass
 
     def recompute_gradients_for_dataset(self, dataset: Dataset):
         """Recompute triangle gradients for a dataset using its current filtered data and settings."""
@@ -1232,6 +1430,38 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         self.status_file_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 10px;")
         self.statusbar.addWidget(self.status_file_label)
 
+        # Per-cell scope chip — only visible when in per-cell filter mode in a
+        # multi-cell layout. Tells the user which cell's filter is driving
+        # Stats / Map / Report (which all read main_window.* = active cell's view).
+        # Clickable: pops up a menu to switch active cell without navigating
+        # back to the plot grid (the new active cell's filter then drives the
+        # currently-visible view — Stats / Map / Report — automatically).
+        self.status_cell_scope_chip = QToolButton()
+        self.status_cell_scope_chip.setText("")
+        self.status_cell_scope_chip.setCursor(Qt.PointingHandCursor)
+        self.status_cell_scope_chip.setPopupMode(QToolButton.InstantPopup)
+        self.status_cell_scope_chip.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.ACCENT_PRIMARY};
+                border-radius: 8px;
+                color: {Colors.ACCENT_PRIMARY};
+                font-size: 10px;
+                font-weight: 600;
+                padding: 1px 8px;
+                margin-left: 6px;
+            }}
+            QToolButton:hover {{
+                background-color: {Colors.BG_HOVER};
+            }}
+            QToolButton::menu-indicator {{
+                image: none;
+                width: 0;
+            }}
+        """)
+        self.status_cell_scope_chip.hide()
+        self.statusbar.addWidget(self.status_cell_scope_chip)
+
         # Permanent widgets on right
         self.status_coords_label = QLabel("")
         # Keep fixed width so rapid coord updates don't trigger layout thrash.
@@ -1476,17 +1706,23 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             return
 
         # Phase 0 Contract: Assemble MapPayload
-        # Use filtered_plot_data if available (includes excluded points visually marked),
-        # fallback to raw data if filtering hasn't run yet.
-        data_source = dataset.filtered_plot_data if dataset.filtered_plot_data is not None else dataset.data
+        # Read from main_window (self) — not from the dataset object — because
+        # in per-cell filter mode `self.filtered_plot_data` etc. mirror the
+        # currently-active grid cell's state, while `dataset.*` is only a
+        # persistent backing store that's synced intermittently. Reading from
+        # `dataset.*` would make the map lag behind cell switches.
+        mw_filtered_plot = getattr(self, "filtered_plot_data", None)
+        data_source = mw_filtered_plot if mw_filtered_plot is not None else (
+            getattr(self, "data", None) if getattr(self, "data", None) is not None else dataset.data
+        )
 
         payload = {
             'data': data_source,
-            'col_mapping': dataset.col_mapping,
-            'excluded_ids': dataset.excluded_ids,
-            'triangle_data': dataset.triangle_data,
-            'gradient_data': dataset.gradient_data,
-            'rejected_data': dataset.rejected_data,
+            'col_mapping': getattr(self, "col_mapping", None) or dataset.col_mapping,
+            'excluded_ids': getattr(self, "excluded_ids", None) or dataset.excluded_ids,
+            'triangle_data': getattr(self, "triangle_data", None),
+            'gradient_data': getattr(self, "gradient_data", None),
+            'rejected_data': getattr(self, "rejected_data", None),
         }
 
         # Dispatch to map widget
@@ -3173,6 +3409,11 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         if dataset is not None:
             self.sync_to_dataset(dataset)
         self._sync_active_sidebar_from_state()
+        try:
+            if dataset is not None and hasattr(dataset, "plot_page"):
+                dataset.plot_page._on_save_cell_state()
+        except Exception:
+            pass
         self.update_plot()
         return template
 
@@ -3316,6 +3557,14 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         """Handle plot-specific option changes from sidebar."""
         non_label_changed = False
         prev_label_mode = self.label_mode_2d
+        color_style_before = (
+            getattr(self, "colormap_2d", None),
+            getattr(self, "colormap_3d", None),
+            getattr(self, "colormap_vectors", None),
+            getattr(self, "histogram_bar_color", None),
+            getattr(self, "histogram_edge_color", None),
+            getattr(self, "rose_color", None),
+        )
 
         # 2D plot options
         new_colormap_2d = options.get('colormap_2d', self.colormap_2d)
@@ -3448,6 +3697,33 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         new_rose_color = options.get('rose_color', self.rose_color)
         non_label_changed = non_label_changed or (new_rose_color != self.rose_color)
         self.rose_color = new_rose_color
+
+        color_style_after = (
+            getattr(self, "colormap_2d", None),
+            getattr(self, "colormap_3d", None),
+            getattr(self, "colormap_vectors", None),
+            getattr(self, "histogram_bar_color", None),
+            getattr(self, "histogram_edge_color", None),
+            getattr(self, "rose_color", None),
+        )
+        if color_style_after != color_style_before:
+            self.current_color_style = "custom"
+            try:
+                dataset = self.get_active_dataset()
+                plot_page = getattr(dataset, "plot_page", None)
+                combo = getattr(plot_page, "palette_combo", None)
+                if combo is not None:
+                    try:
+                        combo.blockSignals(True)
+                        idx = combo.findData("custom")
+                        if idx >= 0:
+                            combo.setCurrentIndex(idx)
+                    finally:
+                        combo.blockSignals(False)
+                if plot_page is not None and hasattr(plot_page, "_refresh_appearance_button"):
+                    plot_page._refresh_appearance_button()
+            except Exception:
+                pass
 
         new_hist_kde = options.get('histogram_show_kde', self.histogram_show_kde)
         non_label_changed = non_label_changed or (new_hist_kde != self.histogram_show_kde)
@@ -3628,6 +3904,9 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             self.show_triangle_selection_overlay = False
             self.show_points = True
             self.current_plot_template = "hydraulic_field"
+            self.current_color_style = "hydraulic"
+            self.current_plot_format = "Default"
+            self.current_plot_style = "Default"
             self.total_triangles = None
             self.rejected_due_to_uncertainty = None
             self.rejected_due_to_triangle_quality = None
@@ -3686,9 +3965,18 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             self.rejected_due_to_uncertainty = getattr(dataset, "rejected_due_to_uncertainty", None)
             self.rejected_due_to_triangle_quality = getattr(dataset, "rejected_due_to_triangle_quality", None)
             self.rejected_due_to_calculation_failed = getattr(dataset, "rejected_due_to_calculation_failed", None)
+            self.current_color_style = getattr(dataset, "current_color_style", "hydraulic")
+            self.current_plot_format = getattr(
+                dataset,
+                "current_plot_format",
+                getattr(dataset, "current_plot_style", "Default"),
+            )
+            self.current_plot_style = getattr(dataset, "current_plot_style", self.current_plot_format)
             for attr in self._DATASET_EXTRA_OPTION_ATTRS:
                 if hasattr(dataset, attr):
                     setattr(self, attr, getattr(dataset, attr))
+            self.current_plot_format = getattr(self, "current_plot_format", self.current_plot_style)
+            self.current_plot_style = self.current_plot_format
 
         self._sync_point_creation_mode_ui()
 
@@ -3802,13 +4090,31 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         if dataset is None or not hasattr(dataset, "plot_page"):
             return
         combo = getattr(dataset.plot_page, "plot_type_combo", None)
+        format_combo = getattr(dataset.plot_page, "format_combo", None)
+        palette_combo = getattr(dataset.plot_page, "palette_combo", None)
         try:
             if combo is not None:
                 combo.blockSignals(True)
                 combo.setCurrentText(to_toolbar_label(self.current_plot_type))
+            if format_combo is not None:
+                format_combo.blockSignals(True)
+                fmt = getattr(self, "current_plot_format", getattr(self, "current_plot_style", "Default"))
+                idx = format_combo.findData(fmt)
+                if idx < 0:
+                    idx = format_combo.findText(str(fmt))
+                if idx >= 0:
+                    format_combo.setCurrentIndex(idx)
+            if palette_combo is not None:
+                palette_combo.blockSignals(True)
+                pal = getattr(self, "current_color_style", "hydraulic")
+                idx = palette_combo.findData(pal)
+                if idx >= 0:
+                    palette_combo.setCurrentIndex(idx)
             dataset.plot_page.plot_sidebar.update_from_settings(self._sidebar_settings_for_active_state())
             dataset.plot_page.plot_sidebar.set_plot_type(self.current_plot_type)
             dataset.plot_page.plot_widget.set_hint_plot_type(self.current_plot_type)
+            if hasattr(dataset.plot_page, "_refresh_appearance_button"):
+                dataset.plot_page._refresh_appearance_button()
         except Exception:
             pass
         finally:
@@ -3817,6 +4123,12 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
                     combo.blockSignals(False)
                 except Exception:
                     pass
+            for visual_combo in (format_combo, palette_combo):
+                if visual_combo is not None:
+                    try:
+                        visual_combo.blockSignals(False)
+                    except Exception:
+                        pass
 
     def create_new_dataset_tab(self, dataset_name=None, file_path=None):
         """Create a new tab for a dataset."""
@@ -3835,6 +4147,10 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         for k, v in (self.default_gradient_settings or {}).items():
             if hasattr(dataset, k):
                 setattr(dataset, k, v)
+        self.current_plot_template = getattr(dataset, "current_plot_template", "hydraulic_field")
+        self.current_color_style = getattr(dataset, "current_color_style", "hydraulic")
+        self.current_plot_format = getattr(dataset, "current_plot_format", "Default")
+        self.current_plot_style = getattr(dataset, "current_plot_style", self.current_plot_format)
         self.datasets[dataset_id] = dataset
 
         # Create page stack for this dataset
@@ -3937,6 +4253,15 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         # Goes through PlotPage so every current AND future grid cell gets it.
         try:
             plot_page.set_dataset_id(dataset_id)
+        except Exception:
+            pass
+        # Seed the freshly-created grid's active cell with main_window's
+        # current state. Without this, cell 0 starts with an empty mw_state
+        # and the multi-cell render swap would fall back to active_snapshot
+        # — harmless, but explicit seeding makes per-cell divergence cleaner
+        # to reason about (subsequent filter changes overwrite this seed).
+        try:
+            plot_page.snapshot_mw_to_active_cell()
         except Exception:
             pass
 
@@ -4086,6 +4411,21 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         # Update properties panel to reflect this dataset's settings
         self.properties_panel.update_from_main_window()
         self._sync_active_sidebar_from_state()
+
+        # Overlay the new dataset's *active grid cell* state on top of the
+        # dataset-level state. Done AFTER update_from_main_window so the
+        # per-cell slider values win (the cell may have diverged from the
+        # dataset-level snapshot when the user filtered per cell).
+        try:
+            if hasattr(dataset, "plot_page"):
+                dataset.plot_page.apply_active_cell_to_mw(sync_ui=True)
+        except Exception:
+            pass
+        # Refresh the status-bar "Showing: Cell N of M" chip for the new dataset.
+        try:
+            self.update_cell_scope_chip()
+        except Exception:
+            pass
 
         # Update views
         self.update_all_views()

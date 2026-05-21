@@ -353,6 +353,36 @@ class PropertiesPanel(QWidget):
         """Data filters with range sliders."""
         section = CardSection("Data Filters", icon_name=Icons.FILTER, icon_color=Colors.ACCENT_PRIMARY)
 
+        # "Apply filter to all cells" toggle — when ON, slider/exclusion
+        # changes broadcast to every grid cell in the active plot page.
+        # When OFF, changes only affect the active cell (per-cell mode).
+        from PyQt5.QtWidgets import QCheckBox
+        self.filter_scope_checkbox = QCheckBox("Apply filter to all cells")
+        self.filter_scope_checkbox.setChecked(True)  # default: global
+        self.filter_scope_checkbox.setCursor(Qt.PointingHandCursor)
+        self.filter_scope_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Colors.TEXT_SECONDARY};
+                font-size: 11px;
+                font-weight: 500;
+                padding: 4px 0;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 14px;
+                height: 14px;
+                border-radius: 3px;
+                border: 1px solid {Colors.BORDER_DEFAULT};
+                background-color: {Colors.BG_SURFACE};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {Colors.ACCENT_PRIMARY};
+                border-color: {Colors.ACCENT_PRIMARY};
+            }}
+        """)
+        self.filter_scope_checkbox.toggled.connect(self._on_filter_scope_changed)
+        section.addWidget(self.filter_scope_checkbox)
+
         # Depth range slider
         self.depth_filter_card = QFrame()
         self.depth_filter_card.setObjectName("depthFilterCard")
@@ -725,6 +755,34 @@ class PropertiesPanel(QWidget):
             'head_min': head_min,
             'head_max': head_max
         })
+
+    def _on_filter_scope_changed(self, checked: bool):
+        """User toggled 'Apply filter to all cells'."""
+        # Store the flag on main_window so the filter pipeline can consult it.
+        try:
+            self.main_window.filter_scope_all_cells = bool(checked)
+        except Exception:
+            pass
+        # When turning global mode ON, re-broadcast the current filter so all
+        # cells re-sync to whatever the active cell currently shows.
+        if checked:
+            try:
+                self.main_window.refilter_and_recalculate()
+            except Exception:
+                pass
+        # Refresh the status-bar chip (it hides in global mode, shows in per-cell).
+        try:
+            if hasattr(self.main_window, "update_cell_scope_chip"):
+                self.main_window.update_cell_scope_chip()
+        except Exception:
+            pass
+
+    def is_filter_scope_global(self) -> bool:
+        """True if filter changes should broadcast to all cells (default)."""
+        try:
+            return bool(self.filter_scope_checkbox.isChecked())
+        except Exception:
+            return True
 
     def _clear_excluded_points(self):
         """Clear all excluded points."""

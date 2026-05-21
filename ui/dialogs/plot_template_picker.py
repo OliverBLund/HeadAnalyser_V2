@@ -41,6 +41,7 @@ from styles.plot_templates import (
     category_names,
     get_template,
 )
+from styles.plot_palettes import get_palette
 from ui.icons import Icons, icon
 from ui.plot_types import normalize_plot_type
 
@@ -296,15 +297,27 @@ class _TemplateCard(QFrame):
         """)
         info_layout.addWidget(desc)
 
-        types = ", ".join(self.template.plot_types)
-        type_label = QLabel(types)
-        type_label.setStyleSheet(f"""
-            color: {Colors.TEXT_MUTED};
-            font-size: 9px;
-            font-weight: 600;
-            background: transparent;
-        """)
-        info_layout.addWidget(type_label)
+        chips = QHBoxLayout()
+        chips.setContentsMargins(0, 0, 0, 0)
+        chips.setSpacing(6)
+        for text in (
+            self.template.format_key,
+            get_palette(self.template.palette_key).name,
+            ", ".join(self.template.plot_types),
+        ):
+            chip = QLabel(text)
+            chip.setStyleSheet(f"""
+                color: {Colors.TEXT_MUTED};
+                background: {Colors.BG_SURFACE};
+                border: 1px solid {Colors.BORDER_SUBTLE};
+                border-radius: 5px;
+                padding: 2px 6px;
+                font-size: 9px;
+                font-weight: 700;
+            """)
+            chips.addWidget(chip)
+        chips.addStretch()
+        info_layout.addLayout(chips)
         layout.addWidget(info)
 
     def _apply_style(self):
@@ -456,7 +469,7 @@ class PlotTemplatePickerDialog(FramelessDialogMixin, QDialog):
         title = QLabel("Plot Templates")
         title.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; font-size: 18px; font-weight: 800; background: transparent;")
         title_col.addWidget(title)
-        subtitle = QLabel(f"{self.plot_type} presets for plot style, overlays, colormaps, and report outputs")
+        subtitle = QLabel(f"{self.plot_type} recipes: color style + format + plot defaults")
         subtitle.setStyleSheet(f"color: {Colors.TEXT_TERTIARY}; font-size: 11px; font-weight: 500; background: transparent;")
         title_col.addWidget(subtitle)
         layout.addLayout(title_col, 1)
@@ -583,8 +596,9 @@ class PlotTemplatePickerDialog(FramelessDialogMixin, QDialog):
 
     def _update_summary(self):
         template = get_template(self._selected_key)
+        palette = get_palette(template.palette_key)
         self._summary.setText(
-            f"Selected: {template.name}. {template.description}"
+            f"Selected: {template.name}. Format: {template.format_key}. Color style: {palette.name}. {template.description}"
         )
 
     def _primary_button_style(self) -> str:

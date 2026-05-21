@@ -231,9 +231,9 @@ class StyleSheet:
 
             /* ========== COMBO BOX ========== */
             QComboBox {{
-                background-color: {Colors.BG_SURFACE};
+                background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: 6px;
                 padding: 6px 12px;
                 padding-right: 30px;
@@ -242,6 +242,7 @@ class StyleSheet:
             }}
 
             QComboBox:hover {{
+                background-color: {Colors.BG_HOVER};
                 border-color: {Colors.ACCENT_PRIMARY};
             }}
 
@@ -339,9 +340,9 @@ class StyleSheet:
 
             /* ========== SPIN BOXES ========== */
             QSpinBox, QDoubleSpinBox {{
-                background-color: {Colors.BG_SURFACE};
+                background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: 6px;
                 padding: 6px 8px;
                 padding-right: 24px;
@@ -349,6 +350,7 @@ class StyleSheet:
             }}
 
             QSpinBox:hover, QDoubleSpinBox:hover {{
+                background-color: {Colors.BG_HOVER};
                 border-color: {Colors.ACCENT_PRIMARY};
             }}
 
@@ -633,8 +635,8 @@ class StyleSheet:
             }}
 
             QComboBox {{
-                background-color: {Colors.BG_SURFACE};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                background-color: {Colors.BG_ELEVATED};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: {Colors.RADIUS_SM};
                 padding: 4px 10px;
                 font-size: 11px;
@@ -888,12 +890,13 @@ class StyleSheet:
                 background-color: {Colors.BG_PANEL};
                 border-bottom: 1px solid {Colors.BORDER_DEFAULT};
                 min-height: {metrics.toolbar_height}px;
-                max-height: {metrics.toolbar_height}px;
+                /* max-height removed so FlowLayout can grow the toolbar to a
+                 * second row when controls don't fit on one line. */
             }}
 
             QComboBox {{
-                background-color: {Colors.BG_SURFACE};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                background-color: {Colors.BG_ELEVATED};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: 4px;
                 padding: 2px 8px;
                 padding-right: 20px;
@@ -904,6 +907,7 @@ class StyleSheet:
                 max-height: {metrics.toolbar_pill_height}px;
             }}
             QComboBox:hover {{
+                background-color: {Colors.BG_HOVER};
                 border-color: {Colors.ACCENT_PRIMARY};
             }}
             QComboBox:focus {{
@@ -1038,9 +1042,9 @@ class StyleSheet:
             }}
 
             QSpinBox, QDoubleSpinBox {{
-                background-color: {Colors.BG_SURFACE};
+                background-color: {Colors.BG_ELEVATED};
                 color: {Colors.TEXT_PRIMARY};
-                border: 1px solid {Colors.BORDER_MEDIUM};
+                border: 1px solid {Colors.BORDER_STRONG};
                 border-radius: 6px;
                 padding: 4px 8px;
                 font-size: 11px;
