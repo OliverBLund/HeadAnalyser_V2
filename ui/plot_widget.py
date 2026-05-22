@@ -266,6 +266,27 @@ class PlotCanvas(FigureCanvas):
         except Exception:
             pass
 
+    def showEvent(self, event):
+        """Re-fit layout when the canvas becomes visible.
+
+        When a dataset tab is loaded but not yet activated, its PlotPage
+        lives inside a hidden ``QStackedWidget`` page. ``update_plot`` may
+        run while the canvas is in the hidden tab with stale or zero
+        dimensions — meaning ``tight_layout`` computes axis margins for the
+        wrong size and the tick / axis labels end up clipped once the user
+        switches to that dataset's tab. Scheduling a deferred tight_layout
+        on the first real ``showEvent`` ensures we re-fit once Qt has given
+        the canvas its actual visible size.
+        """
+        super().showEvent(event)
+        try:
+            # Defer slightly so any pending layout/geometry updates settle
+            # before we measure the canvas — the timer fires once per show.
+            self._pending_resize = True
+            self._resize_timer.start(80)
+        except Exception:
+            pass
+
     def _apply_deferred_resize(self):
         """Recompute the plot's layout once the resize burst has settled."""
         self._pending_resize = False
@@ -378,6 +399,19 @@ class PlotCanvas(FigureCanvas):
         except Exception:
             pass
 
+        # ``tight_layout`` measures label/tick bboxes via the figure's
+        # renderer. On the first call after a fresh draw — or while a
+        # canvas is mid-tab-activation — the renderer may not have valid
+        # bboxes yet and tight_layout falls back to estimates that under-
+        # size the bottom/left margins. Force a synchronous draw first so
+        # the renderer has measured every artist. This costs one extra
+        # render but is the only reliable way to keep x labels / ticks
+        # from getting clipped on initial load.
+        try:
+            self.draw()
+        except Exception:
+            pass
+
         try:
             import warnings
             with warnings.catch_warnings():
@@ -397,10 +431,19 @@ class PlotCanvas(FigureCanvas):
                     # circle — give them breathing room.
                     self.fig.tight_layout(pad=1.5)
                 else:
-                    # Standard 2-D — drop the prior rect=[0.06,0.06,0.98,0.98]
-                    # constraint so tight_layout can use the full figure area
-                    # when a legend/colorbar/etc. needs more room.
-                    self.fig.tight_layout(pad=0.8)
+                    # Standard 2-D — pass a ``rect`` that guarantees minimum
+                    # margins for tick labels + axis labels even if the
+                    # renderer's first-pass bbox estimates are too tight.
+                    # Axes (and any inside-axes legend/colorbar) can still
+                    # shrink WITHIN the rect, so the safety floor doesn't
+                    # prevent legends from fitting in a small cell.
+                    # Margins kept lean now that fonts scale with canvas
+                    # size — smaller cells use smaller fonts, so the same
+                    # rect leaves the right relative breathing room.
+                    self.fig.tight_layout(
+                        pad=0.5,
+                        rect=[0.03, 0.07, 0.99, 0.98],
+                    )
         except Exception:
             pass
         try:
@@ -710,6 +753,7 @@ class HintBar(QWidget):
         "Gradient Vectors": [("Scroll", "Zoom"), ("Drag", "Pan"), ("Click", "Select arrow"), ("Dbl-click", "Inspect"), ("E / I", "Exclude / Include")],
         "Histogram": [("Hover", "Show value"), ("Click", "Select bin"), ("Dbl-click", "Inspect")],
         "Rose Diagram": [("Hover", "Show sector"), ("Click", "Select sector"), ("Dbl-click", "Inspect")],
+        "Map": [("Scroll", "Zoom"), ("Drag", "Pan"), ("OSM tiles", "cached locally")],
     }
 
     dismissed = pyqtSignal()
@@ -864,6 +908,11 @@ class PlotWidget(QWidget):
         self._compass_ylim_cid = None
         self._compass_view_text = None
         self._compass_show_center = False
+        # Plot type this widget is currently rendering. Set by update_plot
+        # and read by per-cell overlays (compass) so they don't accidentally
+        # branch on the global main_window.current_plot_type, which always
+        # reflects the active cell — not necessarily this widget.
+        self._current_plot_type = "2D"
         self._pan_hidden_texts = []
         self._last_coords_text = ""
         self._pending_mask_update = False
@@ -1467,6 +1516,37 @@ class PlotWidget(QWidget):
     def ax(self):
         return self.canvas.ax
 
+    # ── Dynamic font scaling ─────────────────────────────────────────────
+    # Scales axis/tick/colorbar fonts based on the canvas pixel width so the
+    # plot reads well at both single-cell and 2×2/1×3 sizes. Reference width
+    # is 600px (where scale = 1.0); below that, fonts shrink; above 900px
+    # they grow slightly so labels don't look lost in a huge plot.
+
+    def _canvas_font_scale(self) -> float:
+        try:
+            w = int(self.canvas.width())
+        except Exception:
+            return 1.0
+        if w <= 0:
+            return 1.0
+        ref = 600.0
+        s = w / ref
+        # Clamp so we never get illegibly tiny or absurdly large fonts.
+        return max(0.65, min(1.20, s))
+
+    def _axis_label_font_size(self) -> float:
+        base = float(getattr(self.main_window, "axis_label_font_size", 11))
+        return max(6.0, base * self._canvas_font_scale())
+
+    def _tick_font_size(self) -> float:
+        base = float(getattr(self.main_window, "axis_tick_font_size", 9))
+        return max(5.0, base * self._canvas_font_scale())
+
+    def _colorbar_label_font_size(self) -> float:
+        # Slightly smaller than the axis label by convention.
+        base = float(getattr(self.main_window, "axis_label_font_size", 11))
+        return max(6.0, (base - 1.0) * self._canvas_font_scale())
+
     def clear_plot(self):
         """Clear the current plot."""
         self.canvas.clear()
@@ -1474,6 +1554,13 @@ class PlotWidget(QWidget):
     def update_plot(self, data, plot_type):
         """Update the plot based on data and type."""
         plot_type = normalize_plot_type(plot_type)
+        # Remember the plot type this widget is currently rendering so
+        # cell-local overlays (compass, etc.) can branch on it WITHOUT
+        # reading the global ``main_window.current_plot_type`` (which
+        # always reflects the active cell, not this one — that caused
+        # compasses to appear on Histogram/Rose cells when the user
+        # toggled the pill while a Gradient Vectors cell was active).
+        self._current_plot_type = plot_type
         self._clear_plot_interactivity()
         self.canvas.ax.clear()
         self.canvas._style_axes()
@@ -1509,6 +1596,8 @@ class PlotWidget(QWidget):
             self._draw_histogram()
         elif plot_type == "Rose Diagram":
             self._draw_rose_diagram()
+        elif plot_type == "Map":
+            self._draw_map(data, h_col, id_col)
 
         self._sync_compass_overlay()
         self.canvas.request_tight_layout()
@@ -2515,8 +2604,10 @@ class PlotWidget(QWidget):
             cbar = self.canvas.fig.colorbar(cbar_src, cax=cax)
             cbar.ax.yaxis.set_tick_params(color=Colors.PLOT_AXIS)
             cbar.outline.set_edgecolor(Colors.PLOT_GRID)
-            plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color=Colors.PLOT_TEXT)
-            cbar.set_label('Hydraulic Head', color=Colors.PLOT_TEXT)
+            plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'),
+                     color=Colors.PLOT_TEXT, fontsize=self._tick_font_size())
+            cbar.set_label('Hydraulic Head', color=Colors.PLOT_TEXT,
+                           fontsize=self._colorbar_label_font_size())
 
         self._render_2d_static_labels(
             ax=ax,
@@ -2611,18 +2702,18 @@ class PlotWidget(QWidget):
             for text in legend.get_texts():
                 text.set_color('#333333')
 
-        # Labels (use customization properties)
+        # Labels (use customization properties + dynamic font scale).
         ax.set_xlabel(
             getattr(self.main_window, 'x_axis_label', 'X Coordinate [m]'),
-            fontsize=getattr(self.main_window, 'axis_label_font_size', 11),
-            color=Colors.PLOT_TEXT
+            fontsize=self._axis_label_font_size(),
+            color=Colors.PLOT_TEXT,
         )
         ax.set_ylabel(
             getattr(self.main_window, 'y_axis_label', 'Y Coordinate [m]'),
-            fontsize=getattr(self.main_window, 'axis_label_font_size', 11),
-            color=Colors.PLOT_TEXT
+            fontsize=self._axis_label_font_size(),
+            color=Colors.PLOT_TEXT,
         )
-        ax.tick_params(labelsize=getattr(self.main_window, 'axis_tick_font_size', 9))
+        ax.tick_params(labelsize=self._tick_font_size())
         self._apply_square_geo_axes(ax)
         self._apply_synced_geo_major_ticks(ax)
 
@@ -4207,14 +4298,14 @@ class PlotWidget(QWidget):
         ax.set_xlabel(
             getattr(self.main_window, 'x_axis_label', 'X Coordinate [m]'),
             color=Colors.PLOT_TEXT,
-            fontsize=getattr(self.main_window, 'axis_label_font_size', 11)
+            fontsize=self._axis_label_font_size(),
         )
         ax.set_ylabel(
             getattr(self.main_window, 'y_axis_label', 'Y Coordinate [m]'),
             color=Colors.PLOT_TEXT,
-            fontsize=getattr(self.main_window, 'axis_label_font_size', 11)
+            fontsize=self._axis_label_font_size(),
         )
-        ax.tick_params(labelsize=getattr(self.main_window, 'axis_tick_font_size', 9))
+        ax.tick_params(labelsize=self._tick_font_size())
         self._apply_square_geo_axes(ax)
         self._apply_synced_geo_major_ticks(ax)
 
@@ -5455,6 +5546,183 @@ class PlotWidget(QWidget):
         self._mpl_cids.append(self.canvas.mpl_connect("button_release_event", on_click))
         self._mpl_cids.append(self.canvas.mpl_connect("key_press_event", on_key))
 
+    def _draw_map(self, data, h_col, id_col):
+        """Render data points on an OSM basemap (the "Map" plot type).
+
+        Renders in Web Mercator (EPSG:3857) so the OSM tiles align without
+        latitude-dependent distortion. Data points are reprojected from
+        lat/lon to Mercator meters; tick labels are formatted back to
+        degrees via FuncFormatter so the axes stay human-readable.
+
+        Falls back to a plain lat/lon scatter if pyproj isn't installed or
+        the tile fetch fails (offline, OSM down). Tiles are cached on
+        disk so repeat renders are instant.
+        """
+        import numpy as np
+        import os
+        from matplotlib.ticker import FuncFormatter
+
+        # Clear ANY leftover axes from the previous render (colorbar, etc.)
+        # except the primary axes. ``ax.clear()`` only clears the main axes;
+        # without this we end up with a second colorbar stacking up on every
+        # re-render of this cell.
+        ax = self.canvas.ax
+        for stale in list(self.canvas.fig.axes):
+            if stale is ax:
+                continue
+            try:
+                stale.remove()
+            except Exception:
+                pass
+        ax.clear()
+        self.canvas._style_axes()
+
+        mw = self.main_window
+
+        # Require Latitude/Longitude (added by file_handler._transform_coordinates).
+        if "Latitude" not in data.columns or "Longitude" not in data.columns:
+            ax.text(
+                0.5, 0.5,
+                "No lat/lon coordinates available\n(check column mapping in the X/Y dialog)",
+                ha="center", va="center", transform=ax.transAxes,
+                color=Colors.PLOT_TEXT,
+                fontsize=self._axis_label_font_size(),
+            )
+            return
+
+        lat = data["Latitude"].astype(float).values
+        lon = data["Longitude"].astype(float).values
+        valid = np.isfinite(lat) & np.isfinite(lon)
+        if not valid.any():
+            return
+        lat = lat[valid]
+        lon = lon[valid]
+
+        # Hydraulic head colour values (may be missing).
+        h = None
+        if h_col and h_col in data.columns:
+            h_full = data[h_col].astype(float).values[valid]
+            if np.isfinite(h_full).any():
+                h = h_full
+
+        # Lat/lon bounding box + a small padding so points don't kiss the edge.
+        lat_min, lat_max = float(np.min(lat)), float(np.max(lat))
+        lon_min, lon_max = float(np.min(lon)), float(np.max(lon))
+        lat_pad = max((lat_max - lat_min) * 0.10, 0.001)
+        lon_pad = max((lon_max - lon_min) * 0.10, 0.001)
+        lat_min -= lat_pad; lat_max += lat_pad
+        lon_min -= lon_pad; lon_max += lon_pad
+
+        # Reproject lat/lon → Web Mercator so tiles align without
+        # latitude-stretch distortion.
+        proj_ok = False
+        try:
+            from pyproj import Transformer
+            fwd = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+            inv = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+            xs, ys = fwd.transform(lon, lat)
+            x_lo, y_lo = fwd.transform(lon_min, lat_min)
+            x_hi, y_hi = fwd.transform(lon_max, lat_max)
+            proj_ok = True
+        except Exception:
+            xs, ys = lon, lat
+            x_lo, x_hi = lon_min, lon_max
+            y_lo, y_hi = lat_min, lat_max
+            inv = None
+
+        # Fetch + draw basemap (best-effort). The returned extent is already
+        # in EPSG:3857 metres when proj_ok; otherwise we skip the tile draw
+        # since lat/lon axes + Mercator tiles would look stretched again.
+        if proj_ok:
+            try:
+                from core.osm_tiles import fetch_basemap
+                cache_dir = os.path.join(
+                    os.path.expanduser("~"), ".headanalyser_v2", "osm_tiles",
+                )
+                target_px = max(400, min(1200, int(self.canvas.width() or 600)))
+                mosaic, extent = fetch_basemap(
+                    lat_min, lat_max, lon_min, lon_max,
+                    cache_dir=cache_dir, target_px=target_px,
+                )
+                if mosaic is not None and extent is not None:
+                    ax.imshow(
+                        np.asarray(mosaic),
+                        extent=extent,
+                        origin="upper",
+                        interpolation="bilinear",
+                        zorder=0,
+                    )
+            except Exception:
+                # Tiles are optional — points still render below.
+                pass
+
+        # Scatter the data points on top, in whichever CRS we're using.
+        cmap = getattr(mw, "colormap_2d", "viridis")
+        point_size = float(getattr(mw, "point_size", 50))
+        if h is not None:
+            sc = ax.scatter(
+                xs, ys, c=h, cmap=cmap, s=point_size,
+                edgecolors="black", linewidths=0.5, zorder=2,
+            )
+            if bool(getattr(mw, "show_colorbar", True)):
+                try:
+                    cbar = self.canvas.fig.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
+                    cbar.set_label(
+                        "Hydraulic Head",
+                        color=Colors.PLOT_TEXT,
+                        fontsize=self._colorbar_label_font_size(),
+                    )
+                    import matplotlib.pyplot as plt
+                    plt.setp(
+                        plt.getp(cbar.ax.axes, "yticklabels"),
+                        color=Colors.PLOT_TEXT,
+                        fontsize=self._tick_font_size(),
+                    )
+                except Exception:
+                    pass
+        else:
+            ax.scatter(
+                xs, ys, s=point_size,
+                edgecolors="black", facecolors=Colors.ACCENT_PRIMARY,
+                linewidths=0.5, zorder=2,
+            )
+
+        # Frame in whichever CRS we're in; aspect=equal keeps tile pixels
+        # square (no Mercator distortion).
+        ax.set_xlim(x_lo, x_hi)
+        ax.set_ylim(y_lo, y_hi)
+        ax.set_aspect("equal", adjustable="box")
+
+        # Show degrees on the axes despite the underlying metres — uses the
+        # axis tick position, inverse-projects to lat/lon, and formats.
+        if proj_ok and inv is not None:
+            def _fmt_lon(x, _pos):
+                try:
+                    lon_deg, _ = inv.transform(x, 0)
+                    return f"{lon_deg:.3f}°"
+                except Exception:
+                    return ""
+            def _fmt_lat(y, _pos):
+                try:
+                    _, lat_deg = inv.transform(0, y)
+                    return f"{lat_deg:.3f}°"
+                except Exception:
+                    return ""
+            ax.xaxis.set_major_formatter(FuncFormatter(_fmt_lon))
+            ax.yaxis.set_major_formatter(FuncFormatter(_fmt_lat))
+
+        ax.set_xlabel(
+            "Longitude",
+            fontsize=self._axis_label_font_size(),
+            color=Colors.PLOT_TEXT,
+        )
+        ax.set_ylabel(
+            "Latitude",
+            fontsize=self._axis_label_font_size(),
+            color=Colors.PLOT_TEXT,
+        )
+        ax.tick_params(labelsize=self._tick_font_size())
+
     @staticmethod
     def _format_compass_span(value: float) -> str:
         try:
@@ -5522,7 +5790,15 @@ class PlotWidget(QWidget):
 
     def _sync_compass_overlay(self):
         show = bool(getattr(self.main_window, "show_compass", True))
-        current_type = normalize_plot_type(getattr(self.main_window, "current_plot_type", "2D"))
+        # Read THIS widget's plot type (set by update_plot), not the global
+        # ``main_window.current_plot_type`` which only reflects the active
+        # cell. Without this fix, toggling Compass while a Gradient-Vectors
+        # cell was active would draw a compass on every other cell — even
+        # ones rendering a Histogram or Rose where it doesn't belong.
+        current_type = normalize_plot_type(
+            getattr(self, "_current_plot_type", None)
+            or getattr(self.main_window, "current_plot_type", "2D")
+        )
         spatial_types = {"2D", "Gradient Vectors", "3D"}
         if (not show) or (current_type not in spatial_types):
             self._clear_compass_overlay()

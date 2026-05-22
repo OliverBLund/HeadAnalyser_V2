@@ -4282,15 +4282,18 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             plot_page.set_dataset_id(dataset_id)
         except Exception:
             pass
-        # Seed the freshly-created grid's active cell with main_window's
-        # current state. Without this, cell 0 starts with an empty mw_state
-        # and the multi-cell render swap would fall back to active_snapshot
-        # — harmless, but explicit seeding makes per-cell divergence cleaner
-        # to reason about (subsequent filter changes overwrite this seed).
-        try:
-            plot_page.snapshot_mw_to_active_cell()
-        except Exception:
-            pass
+        # NOTE: we deliberately do NOT snapshot main_window state into the
+        # freshly-created cell 0 here. At this point in dataset creation
+        # `_creating_tab` is True so on_tab_changed has not yet fired, which
+        # means `sync_from_dataset` for the NEW dataset has not run. ``mw``
+        # therefore still holds the PREVIOUS dataset's state (or Nones for
+        # the very first dataset). Capturing that into cell 0 would later
+        # cause `apply_active_cell_to_mw` to overwrite the correctly-loaded
+        # dataset state with stale/null values whenever the user switches
+        # tabs back to this dataset. Instead, cell 0 stays with an empty
+        # ``_mw_state`` and is lazily seeded by ``_seed_cell_state_if_empty``
+        # the first time the user activates a cell (by which point ``mw``
+        # holds correct state for this dataset).
 
         # Add tab
         tab_index = self.dataset_tabs.addTab(page_stack, dataset_name)
@@ -4322,7 +4325,7 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             btn.setCursor(Qt.PointingHandCursor)
             btn.setAutoRaise(True)
             btn.setToolTip("Close dataset")
-            btn.setFixedSize(16, 16)
+            btn.setFixedSize(14, 14)
             btn.clicked.connect(self._close_dataset_from_button)
             bar.setTabButton(tab_index, QTabBar.RightSide, btn)
         except Exception:

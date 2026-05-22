@@ -2008,6 +2008,17 @@ class PlotPage(QWidget):
         # for any newly-introduced cells.
         self._on_save_cell_state()
         self._grid_area.set_layout_preset(preset)
+        # Process pending layout / resize events so reparented widgets (cell 0
+        # from the previous layout) report their NEW canvas size by the time
+        # update_plot reads it. Without this flush, font scaling computes
+        # against the cell's pre-rebuild width and the active cell renders
+        # with the wrong (too-large or too-small) font set.
+        try:
+            from PyQt5.QtWidgets import QApplication
+            from PyQt5.QtCore import QEventLoop
+            QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+        except Exception:
+            pass
         # Route through main_window.update_plot so the multi-cell render swap
         # fires; each cell renders with its own (just-inherited) mw_state.
         try:

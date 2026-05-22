@@ -869,7 +869,11 @@ class PlotSidebar(QFrame):
             "3D": 1,
             "Gradient Vectors": 2,
             "Histogram": 3,
-            "Rose Diagram": 4
+            "Rose Diagram": 4,
+            # "Map" reuses the 2D options panel — colormap, point size and
+            # colorbar toggle all apply identically to the lat/lon scatter
+            # drawn over the OSM basemap.
+            "Map": 0,
         }
         index = type_map.get(plot_type, 0)
         self.options_stack.setCurrentIndex(index)
@@ -881,6 +885,9 @@ class PlotSidebar(QFrame):
             "Gradient Vectors": {"contours": False, "arrows": True, "arrow_label": False, "points": True, "labels": True, "colorbar": True},
             "Histogram": {"contours": False, "arrows": False, "arrow_label": False, "points": False, "labels": False, "colorbar": False},
             "Rose Diagram": {"contours": False, "arrows": False, "arrow_label": False, "points": False, "labels": False, "colorbar": False},
+            # Map: colormap + colorbar are the only meaningful toggles here.
+            # Contour / arrow / label overlays are conceptually 2-D-only.
+            "Map": {"contours": False, "arrows": False, "arrow_label": False, "points": False, "labels": False, "colorbar": True},
         }
 
         visibility = toggle_visibility.get(plot_type, toggle_visibility["2D"])

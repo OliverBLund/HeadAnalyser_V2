@@ -11,6 +11,7 @@ INTERNAL_PLOT_TYPES = (
     "Gradient Vectors",
     "Histogram",
     "Rose Diagram",
+    "Map",
 )
 
 DEFAULT_INTERNAL_PLOT_TYPE = "2D"
@@ -22,6 +23,7 @@ TOOLBAR_LABEL_TO_INTERNAL = {
     "Gradient Vectors": "Gradient Vectors",
     "Gradient Histogram": "Histogram",
     "Rose Diagram": "Rose Diagram",
+    "Map (OSM)": "Map",
 }
 
 INTERNAL_TO_TOOLBAR_LABEL = {v: k for k, v in TOOLBAR_LABEL_TO_INTERNAL.items()}

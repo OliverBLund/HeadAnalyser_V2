@@ -16,6 +16,8 @@ from PyQt5.QtCore import QEasingCurve, QPointF, QPropertyAnimation, QRectF, QTim
 from PyQt5.QtGui import QBrush, QColor, QFont, QFontMetricsF, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRegion
 from PyQt5.QtWidgets import QApplication, QWidget
 
+from styles.colors import Colors
+
 
 def _blend(c1: QColor, c2: QColor, amount: float) -> QColor:
     amount = max(0.0, min(1.0, amount))
@@ -31,6 +33,13 @@ def _with_alpha(color: QColor, alpha: int) -> QColor:
     out = QColor(color)
     out.setAlpha(max(0, min(255, int(alpha))))
     return out
+
+
+def _theme_color(token_name: str, fallback: str) -> QColor:
+    color = Colors.qcolor(getattr(Colors, token_name, fallback))
+    if not color.isValid():
+        color = QColor(fallback)
+    return color
 
 
 def _resource_path(*parts: str) -> str:
@@ -137,39 +146,127 @@ class SimpleSplash(QWidget):
         self._draw_frame(painter)
         painter.end()
 
+    def _theme_palette(self) -> dict:
+        dark = Colors.is_dark()
+        if dark:
+            return {
+                "dark": True,
+                "bg0": QColor(6, 12, 24),
+                "bg1": QColor(11, 25, 44),
+                "bg2": QColor(20, 39, 66),
+                "glow0": QColor(56, 189, 248),
+                "glow1": QColor(37, 99, 235),
+                "glow2": QColor(15, 23, 42),
+                "left_wash": QColor(2, 6, 23),
+                "grid": QColor(147, 197, 253),
+                "frame_line": QColor(191, 219, 254),
+                "contour_under": QColor(125, 211, 252),
+                "contour_major": QColor(186, 230, 253),
+                "contour_minor": QColor(129, 140, 248),
+                "panel0": QColor(15, 23, 42),
+                "panel1": QColor(8, 47, 73),
+                "panel_border": QColor(125, 211, 252),
+                "chip_fill": QColor(56, 189, 248),
+                "chip_text": QColor(224, 242, 254),
+                "title": QColor(248, 250, 252),
+                "accent": QColor(129, 140, 248),
+                "accent_dark": QColor(67, 56, 202),
+                "accent_alt": QColor(56, 189, 248),
+                "subtitle": QColor(186, 230, 253),
+                "stage": QColor(226, 232, 240),
+                "detail": QColor(148, 163, 184),
+                "secondary": QColor(226, 232, 240),
+                "border_strong": QColor(147, 197, 253),
+                "progress0": QColor(37, 99, 235),
+                "progress1": QColor(14, 165, 233),
+                "progress2": QColor(125, 211, 252),
+                "shadow": QColor(0, 0, 0),
+                "caption_bg": QColor(8, 47, 73),
+            }
+
+        accent = _theme_color("ACCENT_PRIMARY", "#5b65ea")
+        accent_bright = _theme_color("ACCENT_BRIGHT", "#7c83ff")
+        accent_dark = _theme_color("ACCENT_DARK", "#3c44a8")
+        bg_app = _theme_color("BG_APP", "#f5f2ec")
+        bg_panel = _theme_color("BG_PANEL", "#fcfaf6")
+        bg_surface = _theme_color("BG_SURFACE", "#f2ede5")
+        bg_dark = _theme_color("BG_DARK", "#e9e3d9")
+        text = _theme_color("TEXT_PRIMARY", "#1d1b18")
+        secondary = _theme_color("TEXT_SECONDARY", "#4f4942")
+        tertiary = _theme_color("TEXT_TERTIARY", "#7a7268")
+        grid = _theme_color("PLOT_GRID", "#dfe3e8")
+        info = _theme_color("INFO", "#2563eb")
+        return {
+            "dark": False,
+            "bg0": bg_panel,
+            "bg1": _blend(bg_panel, bg_surface, 0.64),
+            "bg2": _blend(bg_dark, accent, 0.05),
+            "glow0": accent_bright,
+            "glow1": info,
+            "glow2": bg_app,
+            "left_wash": bg_panel,
+            "grid": grid,
+            "frame_line": _blend(accent, text, 0.18),
+            "contour_under": _blend(info, accent, 0.24),
+            "contour_major": _blend(accent_bright, info, 0.26),
+            "contour_minor": _blend(accent, info, 0.16),
+            "panel0": bg_panel,
+            "panel1": bg_surface,
+            "panel_border": _blend(accent, text, 0.10),
+            "chip_fill": accent_bright,
+            "chip_text": text,
+            "title": text,
+            "accent": accent,
+            "accent_dark": accent_dark,
+            "accent_alt": info,
+            "subtitle": secondary,
+            "stage": text,
+            "detail": tertiary,
+            "secondary": secondary,
+            "border_strong": _blend(accent, text, 0.18),
+            "progress0": accent_dark,
+            "progress1": accent,
+            "progress2": accent_bright,
+            "shadow": QColor(80, 68, 52),
+            "caption_bg": bg_panel,
+        }
+
     def _draw_background(self, painter: QPainter) -> None:
         rect = self.rect()
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
+
         base = QLinearGradient(0, 0, rect.width(), rect.height())
-        base.setColorAt(0.0, QColor(6, 12, 24))
-        base.setColorAt(0.45, QColor(11, 25, 44))
-        base.setColorAt(1.0, QColor(20, 39, 66))
+        base.setColorAt(0.0, pal["bg0"])
+        base.setColorAt(0.45, pal["bg1"])
+        base.setColorAt(1.0, pal["bg2"])
         painter.fillRect(rect, base)
 
         glow = QLinearGradient(rect.width() * 0.24, 0, rect.width(), rect.height())
-        glow.setColorAt(0.0, QColor(56, 189, 248, 42))
-        glow.setColorAt(0.48, QColor(37, 99, 235, 20))
-        glow.setColorAt(1.0, QColor(15, 23, 42, 0))
+        glow.setColorAt(0.0, _with_alpha(pal["glow0"], 42 if dark else 28))
+        glow.setColorAt(0.48, _with_alpha(pal["glow1"], 20 if dark else 14))
+        glow.setColorAt(1.0, _with_alpha(pal["glow2"], 0))
         painter.fillRect(rect, glow)
 
         left_wash = QLinearGradient(0, 0, rect.width() * 0.55, 0)
-        left_wash.setColorAt(0.0, QColor(2, 6, 23, 118))
-        left_wash.setColorAt(0.62, QColor(2, 6, 23, 56))
-        left_wash.setColorAt(1.0, QColor(2, 6, 23, 0))
+        left_wash.setColorAt(0.0, _with_alpha(pal["left_wash"], 118 if dark else 142))
+        left_wash.setColorAt(0.62, _with_alpha(pal["left_wash"], 56 if dark else 64))
+        left_wash.setColorAt(1.0, _with_alpha(pal["left_wash"], 0))
         painter.fillRect(rect, left_wash)
 
-        grid_pen = QPen(QColor(147, 197, 253, 20), 1.0)
+        grid_pen = QPen(_with_alpha(pal["grid"], 20 if dark else 46), 1.0)
         painter.setPen(grid_pen)
         for x in range(0, self.width() + 1, 32):
             painter.drawLine(x, 0, x, self.height())
         for y in range(0, self.height() + 1, 32):
             painter.drawLine(0, y, self.width(), y)
 
-        painter.setPen(QPen(QColor(191, 219, 254, 70), 1.2))
+        painter.setPen(QPen(_with_alpha(pal["frame_line"], 70 if dark else 98), 1.2))
         painter.drawLine(44, 34, 118, 34)
         painter.drawLine(self.width() - 118, 34, self.width() - 44, 34)
 
         panel = QRectF(28, 28, self.width() - 56, self.height() - 56)
-        painter.setPen(QPen(QColor(147, 197, 253, 24), 1.0))
+        painter.setPen(QPen(_with_alpha(pal["grid"], 24 if dark else 56), 1.0))
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(panel, 16, 16)
 
@@ -246,6 +343,8 @@ class SimpleSplash(QWidget):
         }.get(case, tuple())
 
     def _draw_contours(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         step = 10.0
         cols = int(math.ceil(self.width() / step)) + 2
         rows = int(math.ceil(self.height() / step)) + 2
@@ -293,19 +392,21 @@ class SimpleSplash(QWidget):
 
             is_major = idx % 4 == 0
             if is_major:
-                painter.setPen(QPen(QColor(125, 211, 252, 26), 3.2))
+                painter.setPen(QPen(_with_alpha(pal["contour_under"], 26 if dark else 34), 3.2))
                 painter.drawPath(path)
-                painter.setPen(QPen(QColor(186, 230, 253, 82), 1.25))
+                painter.setPen(QPen(_with_alpha(pal["contour_major"], 82 if dark else 96), 1.25))
             else:
-                painter.setPen(QPen(QColor(129, 140, 248, 42), 0.75))
+                painter.setPen(QPen(_with_alpha(pal["contour_minor"], 42 if dark else 54), 0.75))
             painter.drawPath(path)
 
     def _draw_depth_panel(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         panel_rect = QRectF(42, 264, 318, 58)
         panel_grad = QLinearGradient(panel_rect.topLeft(), panel_rect.bottomRight())
-        panel_grad.setColorAt(0.0, QColor(15, 23, 42, 122))
-        panel_grad.setColorAt(1.0, QColor(8, 47, 73, 82))
-        painter.setPen(QPen(QColor(125, 211, 252, 50), 1.0))
+        panel_grad.setColorAt(0.0, _with_alpha(pal["panel0"], 122 if dark else 226))
+        panel_grad.setColorAt(1.0, _with_alpha(pal["panel1"], 82 if dark else 206))
+        painter.setPen(QPen(_with_alpha(pal["panel_border"], 50 if dark else 96), 1.0))
         painter.setBrush(QBrush(panel_grad))
         painter.drawRoundedRect(panel_rect, 14, 14)
 
@@ -313,7 +414,7 @@ class SimpleSplash(QWidget):
         left = panel_rect.left() + 18
         top = panel_rect.top() + 9
         painter.setFont(QFont("Segoe UI", 8, QFont.DemiBold))
-        painter.setPen(QColor(125, 211, 252, 190))
+        painter.setPen(_with_alpha(pal["panel_border"], 190 if dark else 210))
         painter.drawText(QRectF(left, top, 120, 14), Qt.AlignLeft | Qt.AlignVCenter, "SYSTEM CHECK")
 
         chips = (
@@ -325,22 +426,24 @@ class SimpleSplash(QWidget):
             x = left + idx * 88
             chip = QRectF(x, top + 25, 74, 22)
             active = progress_ratio >= threshold
-            fill = QColor(56, 189, 248, 46 if active else 18)
-            border = QColor(125, 211, 252, 94 if active else 34)
+            fill = _with_alpha(pal["chip_fill"], (46 if active else 18) if dark else (54 if active else 22))
+            border = _with_alpha(pal["panel_border"], (94 if active else 34) if dark else (122 if active else 62))
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(fill)
             painter.drawRoundedRect(chip, 12, 12)
             painter.setFont(QFont("Cascadia Mono", 7, QFont.DemiBold))
-            painter.setPen(QColor(224, 242, 254, 230 if active else 130))
+            painter.setPen(_with_alpha(pal["chip_text"], 230 if active else 130))
             painter.drawText(chip, Qt.AlignCenter, label)
 
     def _draw_gradient_instrument(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         field_rect = QRectF(self.width() - 286, 82, 218, 204)
         field_grad = QLinearGradient(field_rect.topLeft(), field_rect.bottomRight())
-        field_grad.setColorAt(0.0, QColor(15, 23, 42, 104))
-        field_grad.setColorAt(0.58, QColor(14, 116, 144, 36))
-        field_grad.setColorAt(1.0, QColor(30, 41, 59, 92))
-        painter.setPen(QPen(QColor(125, 211, 252, 46), 1.0))
+        field_grad.setColorAt(0.0, _with_alpha(pal["panel0"], 104 if dark else 234))
+        field_grad.setColorAt(0.58, _with_alpha(pal["glow1"], 36 if dark else 18))
+        field_grad.setColorAt(1.0, _with_alpha(pal["panel1"], 92 if dark else 218))
+        painter.setPen(QPen(_with_alpha(pal["panel_border"], 46 if dark else 96), 1.0))
         painter.setBrush(field_grad)
         painter.drawRoundedRect(field_rect, 24, 24)
 
@@ -350,16 +453,16 @@ class SimpleSplash(QWidget):
 
         glow_rect = QRectF(center.x() - 70, center.y() - 66, 140, 132)
         glow = QLinearGradient(glow_rect.topLeft(), glow_rect.bottomRight())
-        glow.setColorAt(0.0, QColor(59, 130, 246, 28 + int(progress_ratio * 24)))
-        glow.setColorAt(0.52, QColor(14, 165, 233, 46 + int(pulse * 18)))
-        glow.setColorAt(1.0, QColor(129, 140, 248, 28))
+        glow.setColorAt(0.0, _with_alpha(pal["progress0"], 28 + int(progress_ratio * 24)))
+        glow.setColorAt(0.52, _with_alpha(pal["progress1"], 46 + int(pulse * 18) if dark else 28 + int(pulse * 10)))
+        glow.setColorAt(1.0, _with_alpha(pal["accent"], 28 if dark else 18))
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(glow))
         painter.drawEllipse(glow_rect)
 
         for ring_idx, radius in enumerate((82, 58)):
             alpha = 22 + ring_idx * 20 + int(progress_ratio * 18)
-            painter.setPen(QPen(QColor(125, 211, 252, alpha), 1.0))
+            painter.setPen(QPen(_with_alpha(pal["panel_border"], alpha if dark else alpha + 16), 1.0))
             painter.setBrush(Qt.NoBrush)
             painter.drawEllipse(center, radius, radius * 0.68)
 
@@ -374,7 +477,7 @@ class SimpleSplash(QWidget):
                 logo.height(),
             )
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(0, 0, 0, 42))
+            painter.setBrush(_with_alpha(pal["shadow"], 42 if dark else 30))
             painter.drawEllipse(shadow_rect.adjusted(12, 22, -12, -18))
             painter.setOpacity(0.98)
             painter.drawPixmap(
@@ -385,23 +488,25 @@ class SimpleSplash(QWidget):
             painter.restore()
         else:
             painter.setFont(QFont("Segoe UI", 34, QFont.DemiBold))
-            painter.setPen(QColor(224, 242, 254))
+            painter.setPen(pal["chip_text"])
             painter.drawText(field_rect, Qt.AlignCenter, "HA")
 
         caption_rect = QRectF(field_rect.left() + 28, field_rect.bottom() - 36, field_rect.width() - 56, 24)
-        painter.setPen(QPen(QColor(125, 211, 252, 62), 1.0))
-        painter.setBrush(QColor(8, 47, 73, 112))
+        painter.setPen(QPen(_with_alpha(pal["panel_border"], 62 if dark else 104), 1.0))
+        painter.setBrush(_with_alpha(pal["caption_bg"], 112 if dark else 184))
         painter.drawRoundedRect(caption_rect, 12, 12)
         painter.setFont(QFont("Cascadia Mono", 7, QFont.DemiBold))
-        painter.setPen(QColor(224, 242, 254, 220))
+        painter.setPen(_with_alpha(pal["chip_text"], 220))
         painter.drawText(caption_rect, Qt.AlignCenter, "HEADANALYSER")
 
     def _title_font(self) -> QFont:
         font = QFont("Segoe UI", 34, QFont.DemiBold)
-        font.setLetterSpacing(QFont.AbsoluteSpacing, -0.8)
+        font.setLetterSpacing(QFont.AbsoluteSpacing, 0)
         return font
 
     def _draw_text_block(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         left = 42.0
         top = 50.0
 
@@ -409,25 +514,25 @@ class SimpleSplash(QWidget):
         metrics = QFontMetricsF(title_font)
         painter.setFont(title_font)
         title_baseline = top + metrics.ascent()
-        painter.setPen(QColor(248, 250, 252))
+        painter.setPen(pal["title"])
         painter.drawText(QPointF(left, title_baseline), "Head")
         head_width = metrics.horizontalAdvance("Head")
-        painter.setPen(QColor(129, 140, 248))
+        painter.setPen(pal["accent"])
         painter.drawText(QPointF(left + head_width - 1.0, title_baseline), "Analyser")
 
         pill_rect = QRectF(left + metrics.horizontalAdvance("HeadAnalyser") + 15.0, top + 15.0, 78.0, 24.0)
-        painter.setPen(QPen(QColor(129, 140, 248, 122), 1.0))
-        painter.setBrush(QColor(67, 56, 202, 72))
+        painter.setPen(QPen(_with_alpha(pal["accent"], 122 if dark else 142), 1.0))
+        painter.setBrush(_with_alpha(pal["accent_dark"], 72 if dark else 34))
         painter.drawRoundedRect(pill_rect, 12, 12)
         painter.setFont(QFont("Cascadia Mono", 7, QFont.DemiBold))
-        painter.setPen(QColor(224, 231, 255, 228))
+        painter.setPen(_with_alpha(pal["chip_text"], 228))
         painter.drawText(pill_rect, Qt.AlignCenter, "V2.0 BETA")
 
         subtitle_top = top + metrics.height() + 11.0
         subtitle_font = QFont("Segoe UI", 10, QFont.Medium)
         subtitle_font.setLetterSpacing(QFont.AbsoluteSpacing, 0.55)
         painter.setFont(subtitle_font)
-        painter.setPen(QColor(186, 230, 253))
+        painter.setPen(pal["subtitle"])
         painter.drawText(
             QRectF(left, subtitle_top, 390, 20),
             Qt.AlignLeft | Qt.AlignVCenter,
@@ -438,10 +543,10 @@ class SimpleSplash(QWidget):
         label_font = QFont("Segoe UI", 8, QFont.DemiBold)
         label_font.setLetterSpacing(QFont.AbsoluteSpacing, 1.2)
         painter.setFont(label_font)
-        painter.setPen(QColor(125, 211, 252))
+        painter.setPen(pal["panel_border"])
         painter.drawText(QRectF(left, label_top, 180, 16), Qt.AlignLeft | Qt.AlignVCenter, "STARTUP STATUS")
 
-        painter.setPen(QPen(QColor(56, 189, 248, 150), 1.6))
+        painter.setPen(QPen(_with_alpha(pal["accent_alt"], 150 if dark else 166), 1.6))
         painter.drawLine(QPointF(left, label_top - 7.0), QPointF(left + 30.0, label_top - 7.0))
 
         stage_rect = QRectF(left, label_top + 21.0, 352, 22)
@@ -452,7 +557,7 @@ class SimpleSplash(QWidget):
             self._stage_previous,
             self._stage_text,
             QFont("Cascadia Mono", 10, QFont.Medium),
-            QColor(226, 232, 240),
+            pal["stage"],
         )
         self._draw_transition_text(
             painter,
@@ -460,7 +565,7 @@ class SimpleSplash(QWidget):
             self._detail_previous,
             self._detail_text,
             QFont("Segoe UI", 9),
-            QColor(148, 163, 184),
+            pal["detail"],
         )
 
     def _draw_transition_text(
@@ -479,38 +584,40 @@ class SimpleSplash(QWidget):
         painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, text)
 
     def _draw_progress_rail(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         rail_x = 42.0
         rail_y = self.height() - 58.0
         rail_width = self.width() - 128.0
         progress_ratio = max(0.0, min(1.0, self._display_progress / 100.0))
         progress_x = rail_x + rail_width * progress_ratio
 
-        track_pen = QPen(QColor(148, 163, 184, 84), 2.0)
+        track_pen = QPen(_with_alpha(pal["detail"], 84 if dark else 104), 2.0)
         track_pen.setCapStyle(Qt.RoundCap)
         painter.setPen(track_pen)
         painter.drawLine(QPointF(rail_x, rail_y), QPointF(rail_x + rail_width, rail_y))
 
         for marker in range(1, 4):
             tick_x = rail_x + rail_width * (marker / 4.0)
-            painter.setPen(QPen(QColor(147, 197, 253, 90), 1.0))
+            painter.setPen(QPen(_with_alpha(pal["grid"], 90 if dark else 118), 1.0))
             painter.drawLine(QPointF(tick_x, rail_y - 6.0), QPointF(tick_x, rail_y + 6.0))
 
         fill_gradient = QLinearGradient(rail_x, rail_y, rail_x + rail_width, rail_y)
-        fill_gradient.setColorAt(0.0, QColor(37, 99, 235))
-        fill_gradient.setColorAt(0.55, QColor(14, 165, 233))
-        fill_gradient.setColorAt(1.0, QColor(125, 211, 252))
+        fill_gradient.setColorAt(0.0, pal["progress0"])
+        fill_gradient.setColorAt(0.55, pal["progress1"])
+        fill_gradient.setColorAt(1.0, pal["progress2"])
         fill_pen = QPen(QBrush(fill_gradient), 3.2)
         fill_pen.setCapStyle(Qt.RoundCap)
         painter.setPen(fill_pen)
         painter.drawLine(QPointF(rail_x, rail_y), QPointF(progress_x, rail_y))
 
-        cap_color = _blend(QColor(14, 165, 233), QColor(224, 242, 254), progress_ratio * 0.45)
+        cap_color = _blend(pal["progress1"], pal["chip_text"], progress_ratio * 0.45)
         painter.setPen(Qt.NoPen)
         painter.setBrush(_with_alpha(cap_color, 235))
         painter.drawEllipse(QPointF(progress_x, rail_y), 4.0, 4.0)
 
         painter.setFont(QFont("Cascadia Mono", 10, QFont.Medium))
-        painter.setPen(QColor(219, 234, 254))
+        painter.setPen(_with_alpha(pal["chip_text"], 230 if dark else 218))
         painter.drawText(
             QRectF(self.width() - 76.0, rail_y - 12.0, 38.0, 20.0),
             Qt.AlignRight | Qt.AlignVCenter,
@@ -518,18 +625,20 @@ class SimpleSplash(QWidget):
         )
 
     def _draw_footer(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
+        dark = bool(pal["dark"])
         footer_y = self.height() - 25.0
         left = 42.0
 
         if not self._dtu_pixmap.isNull():
             painter.save()
-            painter.setOpacity(0.9)
+            painter.setOpacity(0.88 if dark else 0.96)
             logo = self._dtu_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             painter.drawPixmap(int(left), int(footer_y - 17.0), logo)
             painter.restore()
 
         painter.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
-        painter.setPen(QColor(226, 232, 240, 204))
+        painter.setPen(_with_alpha(pal["secondary"], 214 if dark else 232))
         painter.drawText(
             QRectF(left + 34.0, footer_y - 15.0, 260.0, 20.0),
             Qt.AlignLeft | Qt.AlignVCenter,
@@ -537,7 +646,7 @@ class SimpleSplash(QWidget):
         )
 
         painter.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
-        painter.setPen(QColor(125, 211, 252, 190))
+        painter.setPen(_with_alpha(pal["accent"], 184 if dark else 210))
         painter.drawText(
             QRectF(self.width() - 170.0, footer_y - 15.0, 128.0, 20.0),
             Qt.AlignRight | Qt.AlignVCenter,
@@ -545,8 +654,9 @@ class SimpleSplash(QWidget):
         )
 
     def _draw_frame(self, painter: QPainter) -> None:
+        pal = self._theme_palette()
         frame_rect = QRectF(self.rect()).adjusted(1.0, 1.0, -1.0, -1.0)
-        painter.setPen(QPen(QColor(147, 197, 253, 92), 1.1))
+        painter.setPen(QPen(_with_alpha(pal["border_strong"], 112 if pal["dark"] else 136), 1.1))
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(frame_rect, self._corner_radius, self._corner_radius)
 
@@ -615,3 +725,4 @@ class SimpleSplash(QWidget):
         self.fade_animation.setEasingCurve(QEasingCurve.InQuad)
         self.fade_animation.finished.connect(self.close)
         self.fade_animation.start()
+

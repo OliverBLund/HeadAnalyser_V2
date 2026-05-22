@@ -124,7 +124,13 @@ class StyleSheet:
                 background-color: {Colors.ACCENT_BRIGHT};
             }}
 
-            /* ========== TABS - Warm with accent bottom bar ========== */
+            /* ========== TABS - Flat engineering style ==========
+             * Removed the browser-tab look (rounded tops, weak bottom accent).
+             * Tabs are now flat rectangles with a hairline separator between
+             * each, a 2-px ACCENT_PRIMARY stripe along the TOP edge of the
+             * active tab, and a noticeably wider min-width so dataset names
+             * don't get truncated at "kuldelev_with_depth..." length.
+             */
             QTabWidget::pane {{
                 background-color: transparent;
                 border: none;
@@ -133,28 +139,37 @@ class StyleSheet:
             QTabBar {{
                 background-color: {Colors.BG_DARK};
                 border: none;
-                padding-left: 8px;
+                border-bottom: 1px solid {Colors.BORDER_DEFAULT};
+                padding-left: 0px;
             }}
 
             QTabBar::tab {{
                 background-color: transparent;
                 color: {Colors.TEXT_TERTIARY};
-                padding: 3px 18px 3px 10px;
-                margin: 0px 1px 0px 0px;
+                padding: 3px 8px 3px 10px;
+                margin: 0px;
                 border: none;
-                border-bottom: 2px solid transparent;
-                border-radius: 4px 4px 0px 0px;
+                /* Top accent stays transparent until selected. Reserving it
+                 * here keeps the tab's vertical metrics stable so text
+                 * doesn't shift when the selection changes. */
+                border-top: 2px solid transparent;
+                /* Vertical hairline separator between adjacent tabs. */
+                border-right: 1px solid {Colors.BORDER_DEFAULT};
                 font-size: 11px;
-                font-weight: 600;
-                min-height: 26px;
-                min-width: 68px;
+                font-weight: 500;
+                min-height: 22px;
+                /* Tabs hug their content: short names ("Aike") get short
+                 * tabs, long names elide only at the max bound. */
+                min-width: 90px;
+                max-width: 210px;
             }}
 
             QTabBar::tab:selected {{
                 background-color: {Colors.BG_PANEL};
                 color: {Colors.TEXT_PRIMARY};
-                font-weight: 700;
-                border-bottom: 2px solid {Colors.ACCENT_PRIMARY};
+                font-weight: 600;
+                border-top: 2px solid {Colors.ACCENT_PRIMARY};
+                border-right: 1px solid {Colors.BORDER_DEFAULT};
             }}
 
             QTabBar::tab:hover:!selected {{
@@ -162,19 +177,24 @@ class StyleSheet:
                 color: {Colors.TEXT_SECONDARY};
             }}
 
+            /* Drop the first tab's left edge cleanly into the bar (no double
+             * border with the bar's container). */
+            QTabBar::tab:first {{
+                border-left: none;
+            }}
+
             QToolButton#datasetTabCloseButton {{
                 background-color: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
+                border: none;
+                border-radius: 3px;
                 color: {Colors.TEXT_MUTED};
-                font-size: 12px;
-                font-weight: 900;
+                font-size: 11px;
+                font-weight: 700;
                 padding: 0px;
             }}
 
             QToolButton#datasetTabCloseButton:hover {{
                 background-color: {Colors.ERROR_BG};
-                border-color: transparent;
                 color: {Colors.ERROR};
             }}
 

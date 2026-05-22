@@ -174,13 +174,38 @@ class GridCellContainer(QWidget):
             snap[key] = self._dup(getattr(mw, key, None))
         self._mw_state = snap
 
+    # DataFrame outputs from the filter pipeline. For these keys ONLY, a
+    # stored ``None`` means "we never captured pipeline outputs" — do NOT
+    # overwrite a live ``mw`` value with that None. (Empty DataFrames /
+    # empty sets / False booleans ARE meaningful and should overwrite.)
+    _PIPELINE_DF_KEYS = (
+        "filtered_data",
+        "filtered_plot_data",
+        "triangle_data",
+        "gradient_data",
+        "rejected_data",
+    )
+
     def apply_to_mw(self, mw) -> None:
-        """Push this cell's stored state back onto ``mw``."""
+        """Push this cell's stored state back onto ``mw``.
+
+        Skips writing ``None`` over a live mw value for the filter-pipeline
+        DataFrame attributes. This guards against the case where a cell's
+        ``_mw_state`` was captured before its dataset's pipeline had a
+        chance to populate those outputs — without this guard, applying
+        such a cell would wipe correct data off of mw on every tab switch.
+        """
         for key in self.MW_KEYS:
             if key not in self._mw_state:
                 continue
+            v = self._dup(self._mw_state[key])
+            if v is None and key in self._PIPELINE_DF_KEYS:
+                # Don't clobber a real mw DataFrame with a None we captured
+                # before the pipeline ran. mw is authoritative here.
+                if getattr(mw, key, None) is not None:
+                    continue
             try:
-                setattr(mw, key, self._dup(self._mw_state[key]))
+                setattr(mw, key, v)
             except Exception:
                 pass
 
