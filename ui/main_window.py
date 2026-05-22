@@ -1291,48 +1291,133 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         return normalized[: max(1, int(limit))]
 
     def add_recent_session(self, file_path: str, dataset_name: str = "", mapping: dict = None) -> None:
-        """Persist one-file session for Welcome recent list."""
+        """Persist a snapshot of currently-open datasets as a recent session.
+
+        Captures EVERY currently-open dataset (not just ``file_path``), so a
+        session that the user grew across several loads is restorable as a
+        single click on the welcome screen.
+
+        Dedup / merge rules:
+          - If the new file-set EQUALS the most-recent saved session's set
+            → replace in-place (refresh timestamp / mappings)
+          - If the new file-set is a STRICT SUPERSET of the most-recent
+            saved set → replace in-place (we're growing it within the
+            same app session; avoids cluttering recents with every
+            intermediate "+1 file" snapshot)
+          - Else → prepend as a new session
+          - Any earlier sessions with the same set are dropped (dedup)
+        """
         path = str(file_path or "").strip()
         if not path:
             return
         try:
             from datetime import datetime
-
             now_iso = datetime.now().strftime("%Y-%m-%d %H:%M")
         except Exception:
             now_iso = ""
 
-        cleaned_mapping = {}
-        mapping_input = mapping if isinstance(mapping, dict) else {}
-        for key in ("ID", "x", "y", "hydraulic head", "top", "bottom", "depth"):
-            value = mapping_input.get(key)
-            if value:
-                cleaned_mapping[key] = str(value)
+        # Gather all currently-open datasets (file_path + column mapping).
+        open_files: list[str] = []
+        mappings_per_file: dict[str, dict] = {}
+        names: list[str] = []
+        try:
+            for ds_id in list(self.datasets.keys()):
+                ds = self.datasets[ds_id]
+                fp = str(getattr(ds, "file_path", "") or "").strip()
+                if not fp:
+                    continue
+                if fp in mappings_per_file:
+                    continue  # dedup
+                open_files.append(fp)
+                names.append(str(getattr(ds, "name", "") or os.path.basename(fp)))
+                mappings_per_file[fp] = self._build_session_mapping_for_dataset(ds)
+        except Exception:
+            pass
 
+        # Defensive: include the just-loaded file even if it's not in the
+        # dataset registry yet (call ordering may vary across load paths).
+        if path not in mappings_per_file:
+            open_files.append(path)
+            names.append(str(dataset_name or os.path.basename(path) or "Session"))
+            input_map = mapping if isinstance(mapping, dict) else {}
+            cleaned = {}
+            for k in ("ID", "x", "y", "hydraulic head", "top", "bottom", "depth"):
+                v = input_map.get(k)
+                if v:
+                    cleaned[k] = str(v)
+            mappings_per_file[path] = cleaned
+
+        if not open_files:
+            return
+
+        session_name = " + ".join(filter(None, names)) or os.path.basename(path) or "Session"
         new_entry = {
-            "name": str(dataset_name or os.path.basename(path) or "Session"),
-            "files": [path],
+            "name": session_name,
+            "files": open_files,
             "opened_at": now_iso,
-            "mapping": cleaned_mapping,
+            # New "mappings" (dict-of-dicts, keyed by file path) supersedes
+            # the legacy "mapping" (flat dict for single-file sessions).
+            "mappings": mappings_per_file,
         }
 
+        new_set = frozenset(self._normalize_recent_path(p) for p in open_files)
+
+        # Drop earlier sessions with the same set, AND identify growth case.
         sessions = self._load_recent_entries()
-        normalized_new = self._normalize_recent_path(path)
         deduped = []
         for item in sessions:
-            files = item.get("files") if isinstance(item.get("files"), list) else []
-            first = str(files[0]) if files else ""
-            if first and self._normalize_recent_path(first) == normalized_new:
+            if not isinstance(item, dict):
                 continue
+            files = item.get("files") if isinstance(item.get("files"), list) else []
+            existing_set = frozenset(self._normalize_recent_path(p) for p in files)
+            if existing_set == new_set:
+                continue  # skip — superseded by new entry
             deduped.append(item)
+
+        # Growth: previous most-recent was a strict subset of the new set
+        # (user added files to the same session) — replace, don't prepend.
+        if deduped:
+            prev = deduped[0] if isinstance(deduped[0], dict) else None
+            if prev is not None:
+                prev_files = prev.get("files") if isinstance(prev.get("files"), list) else []
+                prev_set = frozenset(self._normalize_recent_path(p) for p in prev_files)
+                if prev_set and prev_set < new_set:
+                    deduped[0] = new_entry
+                    updated = deduped[:15]
+                    try:
+                        self._recent_settings().setValue("recent_sessions", updated)
+                    except Exception:
+                        pass
+                    return
+
         updated = [new_entry] + deduped[:15]
         try:
             self._recent_settings().setValue("recent_sessions", updated)
         except Exception:
             pass
 
+    def _build_session_mapping_for_dataset(self, dataset) -> dict:
+        """Extract a column-mapping dict for a single dataset (for session persistence)."""
+        cm = getattr(dataset, "col_mapping", {}) or {}
+        cleaned: dict[str, str] = {}
+        for k in ("ID", "x", "y", "hydraulic head"):
+            v = cm.get(k) if isinstance(cm, dict) else None
+            if v:
+                cleaned[k] = str(v)
+        for k, attr in (("top", "top_column"), ("bottom", "bottom_column"), ("depth", "depth_column")):
+            v = getattr(dataset, attr, None)
+            if v:
+                cleaned[k] = str(v)
+        return cleaned
+
     def get_recent_mapping_for_file(self, file_path: str, columns: list = None) -> dict:
-        """Return saved mapping for a specific file path if still compatible."""
+        """Return saved mapping for a specific file path if still compatible.
+
+        Searches across all recent sessions; for multi-file sessions the
+        per-file mapping is taken from the ``mappings`` dict keyed by path.
+        Falls back to the legacy ``mapping`` flat dict for single-file
+        sessions written by older app versions.
+        """
         normalized_path = self._normalize_recent_path(file_path)
         if not normalized_path:
             return {}
@@ -1341,10 +1426,29 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
             if not isinstance(item, dict):
                 continue
             files = item.get("files") if isinstance(item.get("files"), list) else []
-            first = str(files[0]) if files else ""
-            if not first or self._normalize_recent_path(first) != normalized_path:
+            # Does this session contain the queried path? Track which file
+            # it matches so we can look up the right mapping below.
+            matched_file = None
+            for f in files:
+                if self._normalize_recent_path(f) == normalized_path:
+                    matched_file = str(f)
+                    break
+            if matched_file is None:
                 continue
-            mapping = item.get("mapping")
+            # Prefer the new per-file ``mappings`` dict (multi-file aware).
+            mapping = None
+            mappings = item.get("mappings")
+            if isinstance(mappings, dict):
+                mapping = mappings.get(matched_file)
+                if not isinstance(mapping, dict):
+                    # Try normalized-key lookup in case of casing differences.
+                    for k, v in mappings.items():
+                        if self._normalize_recent_path(str(k)) == normalized_path:
+                            mapping = v
+                            break
+            if not isinstance(mapping, dict):
+                # Legacy single-file ``mapping`` flat dict.
+                mapping = item.get("mapping")
             if not isinstance(mapping, dict):
                 return {}
             required = ("ID", "x", "y", "hydraulic head")
@@ -1361,15 +1465,77 @@ class MainWindow(FramelessMainWindowMixin, QMainWindow):
         return {}
 
     def open_recent_file(self, file_path: str) -> None:
-        """Open one recent file directly from welcome list."""
+        """Open a recent session by file path (welcome screen entry click).
+
+        If the welcome entry corresponds to a multi-file session, ALL files
+        in that session are loaded back (in their original order) — one
+        click restores the whole multi-dataset layout. Falls back to
+        single-file open for legacy sessions.
+        """
         path = str(file_path or "").strip()
         if not path:
             self.on_open_file()
             return
-        if not os.path.exists(path):
-            QMessageBox.warning(self, "Recent File Missing", f"File not found:\n{path}")
+
+        # Find the session this click corresponds to. We search by FIRST
+        # file (since the welcome card shows the first file's name), with
+        # a fallback to any session containing this path.
+        normalized = self._normalize_recent_path(path)
+        matched_session: dict = None
+        for item in self._load_recent_entries():
+            if not isinstance(item, dict):
+                continue
+            files = item.get("files") if isinstance(item.get("files"), list) else []
+            if not files:
+                continue
+            if self._normalize_recent_path(str(files[0])) == normalized:
+                matched_session = item
+                break
+        if matched_session is None:
+            # Secondary lookup: session that merely contains the path.
+            for item in self._load_recent_entries():
+                if not isinstance(item, dict):
+                    continue
+                files = item.get("files") if isinstance(item.get("files"), list) else []
+                if any(self._normalize_recent_path(str(f)) == normalized for f in files):
+                    matched_session = item
+                    break
+
+        files = (matched_session.get("files") if isinstance(matched_session, dict)
+                 else None) or [path]
+
+        if len(files) == 1:
+            single = str(files[0]).strip()
+            if not os.path.exists(single):
+                QMessageBox.warning(self, "Recent File Missing", f"File not found:\n{single}")
+                return
+            self.file_handler.load_file(single, use_recent_mapping=True)
             return
-        self.file_handler.load_file(path, use_recent_mapping=True)
+
+        # Multi-file session — load each in order, skipping missing files
+        # (warn once at the end if anything was missing).
+        present, missing = [], []
+        for f in files:
+            fs = str(f).strip()
+            if fs and os.path.exists(fs):
+                present.append(fs)
+            else:
+                missing.append(fs)
+        if missing:
+            QMessageBox.warning(
+                self, "Some session files missing",
+                "The following files in the session were not found and will be skipped:\n\n"
+                + "\n".join(missing[:10])
+                + (f"\n…and {len(missing) - 10} more" if len(missing) > 10 else ""),
+            )
+        for fp in present:
+            try:
+                self.file_handler.load_file(fp, use_recent_mapping=True)
+            except Exception as exc:
+                self._perf_log(
+                    f"[session-restore] failed to load {fp}: {exc}"
+                )
+                continue
 
     def on_open_recent(self) -> None:
         """Open newest recent file; fallback to open-file dialog."""

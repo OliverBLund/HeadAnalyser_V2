@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HeadAnalyser V2 — STATISTICS · Raw readout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ───────────────────────────────────────────────────────────────────────
+     Raw readout view — same "Field Survey" aesthetic as the dashboard
+     concept, but the entire body is a single dense engineering table.
+     ─────────────────────────────────────────────────────────────────────── */
+  :root {
+    --ink: #0a0d13;
+    --ink-2: #10141c;
+    --panel: #161b25;
+    --raised: #1f2532;
+    --hover: #2a3140;
+
+    --hair: rgba(220, 226, 235, 0.04);
+    --line: rgba(220, 226, 235, 0.08);
+    --line-strong: rgba(220, 226, 235, 0.16);
+    --line-bright: rgba(220, 226, 235, 0.28);
+
+    --txt: #d8ddea;
+    --txt-dim: #9aa1b2;
+    --txt-faint: #5d6577;
+    --txt-ghost: #3d4452;
+
+    --amber: #d9a04e;
+    --amber-bright: #f0bd6a;
+    --amber-glow: rgba(217, 160, 78, 0.16);
+    --amber-faint: rgba(217, 160, 78, 0.06);
+
+    --sage: #88b896;
+    --sage-glow: rgba(136, 184, 150, 0.15);
+    --rust: #c4795f;
+    --rust-glow: rgba(196, 121, 95, 0.15);
+    --cyan: #6ec1c9;
+    --cyan-glow: rgba(110, 193, 201, 0.15);
+
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --font-label: "IBM Plex Sans Condensed", system-ui, sans-serif;
+    --font-prose: "Bitter", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--txt);
+    font-family: var(--font-label);
+    font-size: 12px;
+    line-height: 1.4;
+    background-image:
+      radial-gradient(ellipse at 15% 20%, rgba(217,160,78,0.025), transparent 60%),
+      radial-gradient(ellipse at 85% 80%, rgba(110,193,201,0.022), transparent 55%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1400' height='900' viewBox='0 0 1400 900'><g fill='none' stroke='%23d9a04e' stroke-width='0.6' opacity='0.08'><path d='M -100 320 Q 200 250 420 290 T 800 280 T 1200 340 T 1500 310'/><path d='M -100 360 Q 220 290 430 330 T 810 320 T 1210 380 T 1500 350'/><path d='M -100 400 Q 240 330 440 370 T 820 360 T 1220 420 T 1500 390'/><path d='M -100 440 Q 260 370 450 410 T 830 400 T 1230 460 T 1500 430'/><path d='M -100 480 Q 280 410 460 450 T 840 440 T 1240 500 T 1500 470'/><path d='M -100 520 Q 300 450 470 490 T 850 480 T 1250 540 T 1500 510'/><path d='M -100 560 Q 320 490 480 530 T 860 520 T 1260 580 T 1500 550'/><path d='M -100 600 Q 340 530 490 570 T 870 560 T 1270 620 T 1500 590'/><path d='M -100 640 Q 360 570 500 610 T 880 600 T 1280 660 T 1500 630'/></g></svg>");
+    background-size: 1400px 900px;
+    mask-image: linear-gradient(180deg, transparent, black 80px, black calc(100% - 80px), transparent);
+    animation: drift 90s linear infinite;
+  }
+  @keyframes drift { from { background-position: 0 0; } to { background-position: 1400px 0; } }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.025 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+  }
+  .stack { position: relative; z-index: 2; }
+  ::selection { background: var(--amber); color: var(--ink); }
+
+  /* ──────────────────────────── Topbar ──────────────────────────── */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    height: 44px;
+    background: linear-gradient(180deg, var(--ink-2), var(--ink));
+    border-bottom: 1px solid var(--line-strong);
+    position: relative;
+  }
+  .topbar::after {
+    content: ""; position: absolute; inset: auto 0 -1px 0; height: 1px;
+    background-image: repeating-linear-gradient(90deg, var(--amber) 0 1px, transparent 1px 24px);
+    opacity: 0.45;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 18px; border-right: 1px solid var(--line);
+  }
+  .brand .glyph {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: var(--amber-glow); border: 1px solid var(--amber);
+    color: var(--amber-bright); font-family: var(--font-mono);
+    font-size: 11px; font-weight: 700;
+  }
+  .brand .name {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 2.5px; color: var(--txt-dim); text-transform: uppercase;
+  }
+  .brand .name b { color: var(--txt); font-weight: 700; }
+  .brand .name .sep { color: var(--amber); margin: 0 6px; font-weight: 700; }
+  .seg-tabs {
+    display: flex; align-items: center; padding: 0 14px;
+    border-right: 1px solid var(--line);
+  }
+  .seg-tabs button {
+    background: transparent; border: 0;
+    color: var(--txt-faint); font-family: var(--font-mono);
+    font-size: 10px; font-weight: 500; letter-spacing: 1.6px;
+    padding: 0 14px; height: 100%; cursor: pointer;
+    text-transform: uppercase; position: relative;
+  }
+  .seg-tabs button:hover { color: var(--txt); }
+  .seg-tabs button.active { color: var(--amber-bright); }
+  .seg-tabs button.active::after {
+    content: ""; position: absolute; inset: auto 0 0 0; height: 2px;
+    background: var(--amber); box-shadow: 0 0 8px var(--amber-glow);
+  }
+  .seg-tabs button .idx {
+    color: var(--txt-ghost); font-weight: 400; margin-right: 6px; font-size: 9px;
+  }
+  .seg-tabs button.active .idx { color: var(--amber); }
+  .top-right {
+    display: flex; align-items: center; gap: 14px; padding: 0 14px;
+  }
+  .scope {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 12px; background: var(--amber-faint);
+    border: 1px solid var(--amber); color: var(--amber-bright);
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.8px; position: relative;
+  }
+  .scope::before, .scope::after {
+    content: ""; position: absolute; width: 8px; height: 8px;
+    border: 1px solid var(--amber);
+  }
+  .scope::before { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+  .scope::after  { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+  .scope .pulse {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
+    box-shadow: 0 0 0 0 var(--amber);
+    animation: pulse 2.4s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(217,160,78,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(217,160,78,0); }
+    100% { box-shadow: 0 0 0 0 rgba(217,160,78,0); }
+  }
+  .scope code { color: var(--txt); font-weight: 600; }
+  .btn {
+    background: transparent; border: 1px solid var(--line-strong);
+    color: var(--txt-dim); font-family: var(--font-mono);
+    font-size: 10px; font-weight: 500; letter-spacing: 1.2px;
+    padding: 5px 12px; cursor: pointer; text-transform: uppercase;
+  }
+  .btn:hover { border-color: var(--amber); color: var(--amber-bright); background: var(--amber-faint); }
+  .btn.primary { background: var(--amber); border-color: var(--amber); color: var(--ink); font-weight: 700; }
+  .btn.primary:hover { background: var(--amber-bright); border-color: var(--amber-bright); }
+
+  /* ─────────────────────── Control bar above table ─────────────────────── */
+  .control-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ctl-label {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--amber); text-transform: uppercase;
+    letter-spacing: 2.4px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ctl-label::before {
+    content: ""; width: 22px; height: 1px; background: var(--amber);
+  }
+  .section-chips {
+    display: flex; gap: 0;
+    border: 1px solid var(--line-strong);
+  }
+  .section-chips button {
+    background: transparent; border: 0; padding: 5px 12px;
+    border-left: 1px solid var(--line);
+    color: var(--txt-faint); font-family: var(--font-mono);
+    font-size: 9.5px; letter-spacing: 1.3px;
+    text-transform: uppercase; cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .section-chips button:first-child { border-left: 0; }
+  .section-chips button:hover { color: var(--txt); }
+  .section-chips button.on {
+    background: var(--raised); color: var(--amber-bright);
+  }
+  .section-chips button .led {
+    display: inline-block; width: 6px; height: 6px;
+    margin-right: 6px; vertical-align: 1px;
+  }
+  .led.cyan  { background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+  .led.info  { background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+  .led.sage  { background: var(--sage); box-shadow: 0 0 4px var(--sage); }
+  .led.amber { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+  .led.rust  { background: var(--rust); box-shadow: 0 0 4px var(--rust); }
+
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--raised); border: 1px solid var(--line-strong);
+    padding: 0 12px; height: 28px; min-width: 260px;
+  }
+  .search::before {
+    content: "/";
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--amber); font-weight: 700;
+  }
+  .search input {
+    background: transparent; border: 0; outline: 0;
+    color: var(--txt); font-family: var(--font-mono); font-size: 11px;
+    flex: 1; padding: 0;
+  }
+  .search input::placeholder {
+    color: var(--txt-faint); letter-spacing: 0.5px;
+  }
+  .search .hint {
+    font-family: var(--font-mono); font-size: 9px;
+    color: var(--txt-ghost); letter-spacing: 0.8px;
+  }
+  .search .hint kbd {
+    background: var(--ink); border: 1px solid var(--line);
+    padding: 1px 4px; border-radius: 2px; font-family: var(--font-mono);
+  }
+
+  .density-toggle {
+    display: flex; border: 1px solid var(--line-strong);
+  }
+  .density-toggle button {
+    background: transparent; border: 0; padding: 5px 10px;
+    border-left: 1px solid var(--line);
+    color: var(--txt-faint); font-family: var(--font-mono);
+    font-size: 9.5px; letter-spacing: 1.3px;
+    cursor: pointer; text-transform: uppercase;
+  }
+  .density-toggle button:first-child { border-left: 0; }
+  .density-toggle button.on { background: var(--amber); color: var(--ink); font-weight: 700; }
+
+  /* ─────────────────────── Raw readout table ─────────────────────── */
+  .table-wrap {
+    padding: 0 18px 18px;
+  }
+  .raw-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .raw-table thead th {
+    background: var(--ink-2);
+    color: var(--txt-faint);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line-strong);
+    position: sticky;
+    top: 0;
+    user-select: none;
+    cursor: pointer;
+  }
+  .raw-table thead th:hover { color: var(--amber-bright); }
+  .raw-table thead th .sort {
+    display: inline-block; margin-left: 6px;
+    color: var(--txt-ghost); font-size: 9px;
+  }
+  .raw-table thead th.sorted .sort { color: var(--amber); }
+  .raw-table thead th.right { text-align: right; }
+  .raw-table thead th.center { text-align: center; }
+  .raw-table thead th.fixed-w-num { width: 32px; }
+  .raw-table thead th.fixed-w-unit { width: 50px; }
+  .raw-table thead th.fixed-w-delta { width: 110px; }
+  .raw-table thead th.fixed-w-status { width: 36px; }
+  .raw-table thead th.fixed-w-trend { width: 90px; }
+
+  /* Section-header row */
+  .sec-row td {
+    padding: 8px 12px;
+    background: var(--ink-2);
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 600;
+  }
+  .sec-row td .sec-num {
+    display: inline-block; margin-right: 12px;
+    color: var(--txt-faint); font-weight: 400;
+  }
+  .sec-row td .sec-count {
+    float: right; color: var(--txt-faint); font-weight: 400;
+    letter-spacing: 0.8px;
+  }
+  /* Color the leading bar (left-side cell) per section */
+  .sec-row.head td  { box-shadow: inset 3px 0 0 var(--cyan); }
+  .sec-row.grad td  { box-shadow: inset 3px 0 0 var(--sage); }
+  .sec-row.tri  td  { box-shadow: inset 3px 0 0 var(--amber); }
+  .sec-row.qual td  { box-shadow: inset 3px 0 0 var(--rust); }
+
+  /* Data row */
+  .raw-table tbody tr.dr td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--hair);
+    color: var(--txt);
+    vertical-align: middle;
+  }
+  .raw-table tbody tr.dr:nth-child(odd) td { background: rgba(255,255,255,0.012); }
+  .raw-table tbody tr.dr:hover td {
+    background: var(--amber-faint);
+    color: var(--txt);
+  }
+  .raw-table tbody tr.dr:hover td:first-child {
+    box-shadow: inset 3px 0 0 var(--amber);
+  }
+  .raw-table tbody tr.dr td.num {
+    font-family: var(--font-mono);
+    color: var(--txt-faint);
+    font-size: 10px;
+    font-weight: 400;
+  }
+  .raw-table tbody tr.dr td.key {
+    color: var(--txt);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .raw-table tbody tr.dr td.key small {
+    color: var(--txt-faint); font-weight: 400; margin-left: 6px;
+    letter-spacing: 0;
+  }
+  .raw-table tbody tr.dr td.val {
+    color: var(--txt); font-weight: 400;
+    font-size: 12px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .raw-table tbody tr.dr td.val.large {
+    font-size: 13px;
+    color: var(--amber-bright);
+  }
+  .raw-table tbody tr.dr td.unit {
+    color: var(--txt-faint); font-size: 9.5px;
+    letter-spacing: 0.5px;
+  }
+  .raw-table tbody tr.dr td.delta {
+    color: var(--txt-faint); font-size: 10px;
+    text-align: right;
+    letter-spacing: 0.3px;
+  }
+  .raw-table tbody tr.dr td.delta.warn { color: var(--rust); }
+  .raw-table tbody tr.dr td.delta.gain { color: var(--sage); }
+  .raw-table tbody tr.dr td.delta.flat { color: var(--txt-ghost); }
+  .raw-table tbody tr.dr td.delta .arrow { font-size: 8px; margin-right: 3px; }
+
+  .raw-table tbody tr.dr td.status {
+    text-align: center;
+  }
+  .raw-table tbody tr.dr td.status .pip {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; box-shadow: 0 0 6px currentColor;
+  }
+  .pip.ok    { background: var(--sage);  color: var(--sage); }
+  .pip.warn  { background: var(--amber); color: var(--amber); }
+  .pip.err   { background: var(--rust);  color: var(--rust); }
+  .pip.info  { background: var(--cyan);  color: var(--cyan); }
+  .pip.mute  { background: var(--txt-ghost); color: var(--txt-ghost); box-shadow: none; }
+
+  /* Trend mini-bar in last column */
+  .raw-table tbody tr.dr td.trend svg {
+    display: block; width: 100%; height: 14px;
+  }
+
+  /* Note cell — italic serif for the field-note feel */
+  .raw-table tbody tr.dr td.note {
+    font-family: var(--font-prose);
+    font-style: italic;
+    font-size: 10.5px;
+    color: var(--txt-dim);
+    border-left: 1px solid var(--hair);
+  }
+
+  /* Footer below table */
+  .table-footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 12px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--ink-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--txt-faint);
+    letter-spacing: 0.8px;
+  }
+  .table-footer .stats b {
+    color: var(--amber-bright); font-weight: 600;
+  }
+  .table-footer .actions {
+    display: flex; gap: 8px;
+  }
+
+  /* ────────────── Design notes (below the page) ────────────── */
+  .notes {
+    padding: 32px 18px 60px;
+    border-top: 1px solid var(--line);
+    background: var(--ink-2); margin-top: 18px;
+  }
+  .notes-inner { max-width: 940px; margin: 0 auto; }
+  .notes h3 {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--amber); letter-spacing: 3px;
+    text-transform: uppercase; margin: 0 0 14px;
+    font-weight: 500; display: flex; align-items: center; gap: 10px;
+  }
+  .notes h3::before { content: ""; width: 20px; height: 1px; background: var(--amber); }
+  .notes p, .notes li {
+    font-family: var(--font-prose); font-size: 12.5px;
+    line-height: 1.65; color: var(--txt-dim);
+  }
+  .notes ol, .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  .notes strong { color: var(--txt); font-weight: 600; }
+  .notes code {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--amber-bright); background: var(--ink);
+    padding: 1px 5px; border: 1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+<div class="stack">
+
+<!-- ─────────────────────────── TOPBAR ─────────────────────────── -->
+<div class="topbar">
+  <div class="brand">
+    <span class="glyph">H</span>
+    <span class="name">HEADANALYSER<span class="sep">·</span><b>STATISTICS</b></span>
+  </div>
+  <div class="seg-tabs">
+    <button><span class="idx">01</span>OVERVIEW</button>
+    <button><span class="idx">02</span>HEAD</button>
+    <button><span class="idx">03</span>GRADIENT</button>
+    <button><span class="idx">04</span>TRIANGLES</button>
+    <button><span class="idx">05</span>SNAPSHOTS</button>
+    <button class="active"><span class="idx">06</span>RAW</button>
+  </div>
+  <div class="top-right">
+    <span class="scope">
+      <span class="pulse"></span>
+      <span>SCOPE</span>
+      <code>CELL 1/4 · DEPTH 0–50 m</code>
+    </span>
+    <button class="btn">PIN BASELINE</button>
+    <button class="btn primary">EXPORT ▾</button>
+  </div>
+</div>
+
+<!-- ─────────────────────────── CONTROL BAR ─────────────────────────── -->
+<div class="control-bar">
+  <span class="ctl-label">RAW READOUT</span>
+
+  <div class="section-chips">
+    <button class="on"><span class="led amber"></span>ALL</button>
+    <button><span class="led cyan"></span>OVERVIEW</button>
+    <button><span class="led info"></span>HEAD</button>
+    <button><span class="led sage"></span>GRADIENT</button>
+    <button><span class="led amber"></span>TRIANGLES</button>
+    <button><span class="led rust"></span>QUALITY</button>
+  </div>
+
+  <div class="search">
+    <input type="text" placeholder="Filter metric · regex supported" />
+    <span class="hint"><kbd>/</kbd> focus · <kbd>esc</kbd> clear</span>
+  </div>
+
+  <div class="density-toggle">
+    <button>COMPACT</button>
+    <button class="on">DENSE</button>
+    <button>VERBOSE</button>
+  </div>
+</div>
+
+<!-- ─────────────────────────── RAW TABLE ─────────────────────────── -->
+<div class="table-wrap">
+  <table class="raw-table">
+    <thead>
+      <tr>
+        <th class="fixed-w-num">№</th>
+        <th>METRIC <span class="sort">▾</span></th>
+        <th class="right">VALUE <span class="sort">▾</span></th>
+        <th class="fixed-w-unit">UNIT</th>
+        <th class="fixed-w-delta right">Δ BASELINE</th>
+        <th class="fixed-w-status center">STAT</th>
+        <th class="fixed-w-trend">TREND</th>
+        <th>NOTE</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- ════════════════ OVERVIEW SECTION ════════════════ -->
+      <tr class="sec-row head">
+        <td colspan="8">
+          <span class="sec-num">§ 01</span>OVERVIEW
+          <span class="sec-count">3 metrics</span>
+        </td>
+      </tr>
+      <tr class="dr">
+        <td class="num">001</td>
+        <td class="key">data_points <small>after filter</small></td>
+        <td class="val large">1,247</td>
+        <td class="unit">N</td>
+        <td class="delta gain"><span class="arrow">▲</span> +12</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,10 10,9 20,8 30,7 40,7 50,5 60,4 70,3 80,3" stroke="#6ec1c9" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">84.2% of raw dataset retained after depth + head filter.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">002</td>
+        <td class="key">triangles_kept_rate</td>
+        <td class="val large">94.5</td>
+        <td class="unit">%</td>
+        <td class="delta gain"><span class="arrow">▲</span> +0.4 pp</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,8 10,7 20,6 30,7 40,5 50,5 60,4 70,3 80,4" stroke="#88b896" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">2,438 valid of 2,580 total triangles.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">003</td>
+        <td class="key">direction_coherence_R</td>
+        <td class="val large">0.78</td>
+        <td class="unit">-</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,9 10,8 20,7 30,5 40,5 50,4 60,4 70,3 80,3" stroke="#88b896" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Strong directional signal · bearing 247° SW.</td>
+      </tr>
+
+      <!-- ════════════════ HEAD SECTION ════════════════ -->
+      <tr class="sec-row head">
+        <td colspan="8">
+          <span class="sec-num">§ 02</span>HYDRAULIC HEAD
+          <span class="sec-count">distribution · coverage · spatial trend · 13 metrics</span>
+        </td>
+      </tr>
+
+      <tr class="dr">
+        <td class="num">010</td>
+        <td class="key">mean</td>
+        <td class="val">36.42</td>
+        <td class="unit">m</td>
+        <td class="delta warn"><span class="arrow">▼</span> −0.12</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,5 10,6 20,7 30,8 40,8 50,9 60,9 70,10 80,10" stroke="#c4795f" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Drifting downward since baseline — investigate sensor calibration.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">011</td>
+        <td class="key">median</td>
+        <td class="val">36.38</td>
+        <td class="unit">m</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,7 10,7 20,7 30,7 40,7 50,7 60,7 70,7 80,7" stroke="#88b896" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Stable — outlier-resistant central tendency.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">012</td>
+        <td class="key">std_deviation</td>
+        <td class="val">2.14</td>
+        <td class="unit">m</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,8 10,8 20,7 30,7 40,7 50,7 60,7 70,7 80,7" stroke="#5d6577" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Spread unchanged after filter.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">013</td>
+        <td class="key">range</td>
+        <td class="val">28.3 – 42.1</td>
+        <td class="unit">m</td>
+        <td class="delta flat">13.8 span</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Min &amp; max within historical envelope.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">014</td>
+        <td class="key">iqr_q1_q3</td>
+        <td class="val">35.1 – 37.8</td>
+        <td class="unit">m</td>
+        <td class="delta flat">2.7 span</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Central 50% spans 2.7 m.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">015</td>
+        <td class="key">mad <small>median abs. deviation</small></td>
+        <td class="val">1.40</td>
+        <td class="unit">m</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Robust scale estimate.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">016</td>
+        <td class="key">used_total</td>
+        <td class="val">1,189 / 1,247</td>
+        <td class="unit">N</td>
+        <td class="delta flat">95.4%</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">58 points dropped (missing or duplicate).</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">017</td>
+        <td class="key">missing_head</td>
+        <td class="val">8</td>
+        <td class="unit">N</td>
+        <td class="delta flat">0.6%</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend"></td>
+        <td class="note">8 wells missing head readings — exclude or backfill.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">018</td>
+        <td class="key">duplicate_ids</td>
+        <td class="val">2</td>
+        <td class="unit">N</td>
+        <td class="delta flat">flagged</td>
+        <td class="status"><span class="pip err"></span></td>
+        <td class="trend"></td>
+        <td class="note">Two points share an ID — collisions in upstream join?</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">019</td>
+        <td class="key">outliers_iqr</td>
+        <td class="val">19 lo · 31 hi</td>
+        <td class="unit">N</td>
+        <td class="delta warn"><span class="arrow">▲</span> +12 hi</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,10 10,9 20,8 30,7 40,6 50,5 60,4 70,3 80,2" stroke="#c4795f" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">High-side outliers growing — possible sensor drift on east transect.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">020</td>
+        <td class="key">ew_slope <small>least-squares plane</small></td>
+        <td class="val">+0.0024</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">±0.0001</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend"></td>
+        <td class="note">Head rises eastward.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">021</td>
+        <td class="key">ns_slope</td>
+        <td class="val">−0.0011</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">±0.0001</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend"></td>
+        <td class="note">Gentle southward decline.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">022</td>
+        <td class="key">dominant_axis</td>
+        <td class="val">E → W</td>
+        <td class="unit">-</td>
+        <td class="delta flat">2.2× N-S</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">E-W slope is ~2× steeper than N-S.</td>
+      </tr>
+
+      <!-- ════════════════ GRADIENT SECTION ════════════════ -->
+      <tr class="sec-row grad">
+        <td colspan="8">
+          <span class="sec-num">§ 03</span>GRADIENT FIELD
+          <span class="sec-count">core · direction · kept-vs-rejected · 11 metrics</span>
+        </td>
+      </tr>
+
+      <tr class="dr">
+        <td class="num">030</td>
+        <td class="key">avg_gradient</td>
+        <td class="val">0.00247</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">±0.00003</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,8 10,7 20,6 30,6 40,5 50,5 60,5 70,5 80,5" stroke="#88b896" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Stable across last 6 recomputes.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">031</td>
+        <td class="key">mean_ci_95</td>
+        <td class="val">.00231 – .00263</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">tight</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Confidence interval tight relative to mean.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">032</td>
+        <td class="key">median_gradient</td>
+        <td class="val">0.00198</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Median below mean — right-skewed distribution.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">033</td>
+        <td class="key">std_deviation</td>
+        <td class="val">0.00142</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">—</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">034</td>
+        <td class="key">p10_p90</td>
+        <td class="val">.00069 / .00471</td>
+        <td class="unit">m/m</td>
+        <td class="delta flat">6.8× ratio</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend"></td>
+        <td class="note">P90 nearly 7× P10 — heterogeneous flow magnitudes.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">035</td>
+        <td class="key">cv <small>σ/μ</small></td>
+        <td class="val">0.575</td>
+        <td class="unit">-</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend"></td>
+        <td class="note">Moderate variability around the mean.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">036</td>
+        <td class="key">avg_direction_unweighted</td>
+        <td class="val">241° <small>SW</small></td>
+        <td class="unit">deg</td>
+        <td class="delta flat">±2°</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Bearing computed without gradient weighting.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">037</td>
+        <td class="key">avg_direction_weighted</td>
+        <td class="val">247° <small>SW</small></td>
+        <td class="unit">deg</td>
+        <td class="delta flat">±1°</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Gradient-weighted bearing — preferred for transport modelling.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">038</td>
+        <td class="key">coherence_R</td>
+        <td class="val">0.78</td>
+        <td class="unit">-</td>
+        <td class="delta flat">±0.00</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">R &gt; 0.7 ⇒ strong directional consensus.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">039</td>
+        <td class="key">kept_vs_rej_mean_ratio</td>
+        <td class="val">1 : 2.11</td>
+        <td class="unit">-</td>
+        <td class="delta warn"><span class="arrow">▲</span> +0.08</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,7 10,7 20,6 30,6 40,5 50,5 60,4 70,4 80,3" stroke="#c4795f" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Rejected triangles average 2× the gradient of kept — filter behaving as designed.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">040</td>
+        <td class="key">kept_vs_rej_median_ratio</td>
+        <td class="val">1 : 2.16</td>
+        <td class="unit">-</td>
+        <td class="delta flat">±0.02</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Median ratio consistent with mean — no extreme outliers in rej.</td>
+      </tr>
+
+      <!-- ════════════════ TRIANGLES SECTION ════════════════ -->
+      <tr class="sec-row tri">
+        <td colspan="8">
+          <span class="sec-num">§ 04</span>TRIANGLE ANALYSIS
+          <span class="sec-count">summary · rejection causes · 7 metrics</span>
+        </td>
+      </tr>
+
+      <tr class="dr">
+        <td class="num">050</td>
+        <td class="key">total_triangles</td>
+        <td class="val">2,580</td>
+        <td class="unit">N</td>
+        <td class="delta flat">±0</td>
+        <td class="status"><span class="pip info"></span></td>
+        <td class="trend"></td>
+        <td class="note">All Delaunay triangles before filtering.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">051</td>
+        <td class="key">valid_triangles</td>
+        <td class="val">2,438</td>
+        <td class="unit">N</td>
+        <td class="delta gain"><span class="arrow">▲</span> +18</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,8 10,7 20,7 30,6 40,5 50,5 60,4 70,4 80,3" stroke="#88b896" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">94.5% pass all gates.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">052</td>
+        <td class="key">rejected_total</td>
+        <td class="val">142</td>
+        <td class="unit">N</td>
+        <td class="delta warn"><span class="arrow">▼</span> −18</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend"></td>
+        <td class="note">5.5% of all triangles dropped.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">053</td>
+        <td class="key">rej_uncertainty</td>
+        <td class="val">87</td>
+        <td class="unit">N</td>
+        <td class="delta flat">61% of rej</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend"></td>
+        <td class="note">Head uncertainty exceeded threshold.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">054</td>
+        <td class="key">rej_triangle_quality</td>
+        <td class="val">38</td>
+        <td class="unit">N</td>
+        <td class="delta flat">27% of rej</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend"></td>
+        <td class="note">Triangles too elongated / too small.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">055</td>
+        <td class="key">rej_calc_failed</td>
+        <td class="val">17</td>
+        <td class="unit">N</td>
+        <td class="delta flat">12% of rej</td>
+        <td class="status"><span class="pip err"></span></td>
+        <td class="trend"></td>
+        <td class="note">Numeric failure — likely co-linear or stacked points.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">056</td>
+        <td class="key">top_freq_in_rejections</td>
+        <td class="val">114.1578 <small>(8)</small></td>
+        <td class="unit">id</td>
+        <td class="delta warn"><span class="arrow">▲</span> +2</td>
+        <td class="status"><span class="pip err"></span></td>
+        <td class="trend"></td>
+        <td class="note">Most-frequent point in rejected triangles — inspect closely.</td>
+      </tr>
+
+      <!-- ════════════════ QUALITY / META ════════════════ -->
+      <tr class="sec-row qual">
+        <td colspan="8">
+          <span class="sec-num">§ 05</span>QUALITY &amp; META
+          <span class="sec-count">composite indicators · 3 metrics</span>
+        </td>
+      </tr>
+
+      <tr class="dr">
+        <td class="num">070</td>
+        <td class="key">data_quality_score <small>composite 0-100</small></td>
+        <td class="val large">86</td>
+        <td class="unit">/100</td>
+        <td class="delta warn"><span class="arrow">▼</span> −2</td>
+        <td class="status"><span class="pip warn"></span></td>
+        <td class="trend">
+          <svg viewBox="0 0 80 14" preserveAspectRatio="none">
+            <polyline points="0,3 10,3 20,4 30,4 40,5 50,5 60,6 70,7 80,7" stroke="#c4795f" stroke-width="1" fill="none"/>
+          </svg>
+        </td>
+        <td class="note">Slight drop driven by growing high-side outliers (§ 02 · 019).</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">071</td>
+        <td class="key">filter_pipeline_runs</td>
+        <td class="val">12</td>
+        <td class="unit">N</td>
+        <td class="delta flat">this session</td>
+        <td class="status"><span class="pip mute"></span></td>
+        <td class="trend"></td>
+        <td class="note">Pipeline has run 12 times since file load.</td>
+      </tr>
+      <tr class="dr">
+        <td class="num">072</td>
+        <td class="key">cache_state</td>
+        <td class="val">hit</td>
+        <td class="unit">-</td>
+        <td class="delta flat">since 22:14</td>
+        <td class="status"><span class="pip ok"></span></td>
+        <td class="trend"></td>
+        <td class="note">Derived-stats cache valid for current filter combo.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="table-footer">
+    <div class="stats">
+      37 ROWS · <b>5 SECTIONS</b> · 3 WARNINGS · 2 ERRORS · BASELINE PIN ACTIVE FROM <b>22:14:08</b>
+    </div>
+    <div class="actions">
+      <button class="btn">COPY VISIBLE · TSV</button>
+      <button class="btn">EXPORT FULL · CSV</button>
+      <button class="btn primary">REPORT (PDF) ▾</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── DESIGN NOTES ─────────────────────────── -->
+<div class="notes">
+  <div class="notes-inner">
+    <h3>Design Notes · Raw Readout view</h3>
+    <p>
+      Companion to the dashboard concept — sixth segmented tab labelled <code>06 RAW</code>. When selected, the whole content area becomes a single dense readout table. Everything that's visualized elsewhere is also exposed here as a row, plus a few quality / meta indicators that don't fit naturally on the dashboard.
+    </p>
+    <ol>
+      <li><strong>One table, five sections.</strong> Overview, Hydraulic Head, Gradient Field, Triangle Analysis, Quality &amp; Meta. Each section header carries the same § number used on the dashboard panels (<code>§ 02</code>) so the two views are clearly indexed against one another.</li>
+      <li><strong>Eight columns:</strong> №, METRIC, VALUE, UNIT, Δ BASELINE, STAT (LED), TREND (mini sparkline), NOTE. Numeric columns are right-aligned with tabular nums; the NOTE column uses the same italic Bitter serif as the field-note blocks on the dashboard.</li>
+      <li><strong>Status LED column.</strong> One coloured pip per row — info (cyan), ok (sage), warn (amber), err (rust), muted (grey). Lets you scan the table in 2 seconds and find every row with a non-ok status. The composite <code>data_quality_score</code> (§ 05) summarises all of them in a single 0–100 number.</li>
+      <li><strong>Sparkline trend column</strong> for any metric where history exists. Empty for one-shot metrics (range, IQR, etc). Colors match the status — rust for downward trend, sage for upward.</li>
+      <li><strong>Section-color left bars.</strong> Each section-header row gets a 3-px coloured inner shadow on the left — cyan for Overview/Head, sage for Gradient, amber for Triangles, rust for Quality. Visually anchors the section without taking a whole column.</li>
+      <li><strong>Hover state for data rows</strong> lights an amber bar on the left + tints the row background — same affordance as the section bar, so hover feels like "this is now the active row." Clicking a row would link through to the corresponding plot or the data-table view (e.g. clicking <code>top_freq_in_rejections</code> → Triangle Inspector filtered to point 114.1578).</li>
+      <li><strong>Control bar above the table</strong> exposes:
+        <ul>
+          <li><em>Section chips</em> — toggle which sections are visible (LED-tagged like the status pips so they share a visual language).</li>
+          <li><em>Search box</em> with mono input, regex-capable, <code>/</code> shortcut to focus and <code>esc</code> to clear. Search compares against the metric key (not the note prose) to keep results predictable.</li>
+          <li><em>Density toggle</em> — Compact / Dense / Verbose, controlling row padding. Verbose mode would also unfold any abbreviated values to full precision.</li>
+        </ul>
+      </li>
+      <li><strong>Δ Baseline column</strong> shows delta against the pinned baseline (set via the topbar's <code>PIN BASELINE</code> button). Up arrow = gain, down arrow = warn (or vice-versa depending on whether the metric being up is good). Flat <code>±0.00</code> rendered in a ghosted grey so it disappears against changes.</li>
+      <li><strong>Table footer</strong> summarises: row count · section count · warning/error counts · baseline-pin timestamp. Actions live on the right — copy visible (TSV for paste into spreadsheets), full CSV export, PDF report.</li>
+      <li><strong>Pure-data, scannable.</strong> No charts, no widgets, no animation beyond the topbar pulse and contour drift — this view is for the user who wants to scan every number at once, copy/paste rows into a notebook, or grep for an outlier ID.</li>
+    </ol>
+
+    <h3>Why this complements the dashboard</h3>
+    <ul>
+      <li>The dashboard answers <strong>"is this dataset healthy and what's the headline story?"</strong> — visual first, contextual prose, charts.</li>
+      <li>The raw view answers <strong>"give me every number"</strong> — keyboard-driven, no chrome, exportable in one click. Engineering audiences want both modes available at all times.</li>
+      <li>Both views read from the same derived-cache layer, so switching tabs is instant (no re-derive).</li>
+    </ul>
+
+    <h3>Implementation notes</h3>
+    <ul>
+      <li>In Qt5 this is best built as a <code>QTreeView</code> (not a plain <code>QTableView</code>) so section headers can group child rows and be collapsible. The model is a lightweight <code>QStandardItemModel</code> populated from the existing derived-cache dict; rows render via a custom delegate that paints the LED pip and sparkline.</li>
+      <li>Sparklines render as <code>QPainter</code> polylines on the cell rect — no matplotlib needed for inline 80×14 px strokes. History buffer is whatever the existing perf-log / dataset session keeps.</li>
+      <li>The status pip uses the same colour mapping as the dashboard LED dots — single source of truth in <code>Colors</code>.</li>
+      <li>Section chips + search + density toggle replace the current scattered placeholders in the existing Statistics panel — same set of controls handles both views.</li>
+    </ul>
+  </div>
+</div>
+
+</div><!-- /stack -->
+</body>
+</html>

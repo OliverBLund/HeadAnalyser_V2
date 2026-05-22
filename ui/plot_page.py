@@ -1902,7 +1902,12 @@ class PlotPage(QWidget):
             self.plot_widget.update_plot(data, current_type)
 
     def _save_active_cell_pill(self, attr: str, value: bool) -> None:
-        """Persist a single pill flag onto the active cell's stored mw_state."""
+        """Persist a pill flag onto the active cell's mw_state.
+
+        Pills (Grid / Legend / Compass / Dark) are visualization controls
+        and are always per-cell — independent of the data-filter scope.
+        Click a cell, toggle a pill, only that cell changes.
+        """
         try:
             cell = self._grid_area.active_cell
             if not cell.mw_state:
@@ -1930,9 +1935,11 @@ class PlotPage(QWidget):
         self.main_window.update_plot()
 
     def _on_dark_canvas_changed(self, checked: bool):
-        # Dark canvas lives on each PlotWidget (``_dark_canvas``) — per-cell by
-        # construction. Just flip the active cell's widget; other cells keep
-        # whatever dark state they had.
+        """Dark canvas pill — per-PlotWidget flag (always per-cell).
+
+        Dark canvas lives on the PlotWidget itself (``_dark_canvas``),
+        not in cell.mw_state. Only the active cell flips.
+        """
         self.plot_widget.set_dark_canvas(bool(checked))
         self.main_window.update_plot()
 
@@ -2239,9 +2246,12 @@ class PlotPage(QWidget):
         """Export the current view.
 
         For a multi-cell grid, captures the full splitter tree (composite of
-        all visible plots, splitter handles included) using ``QWidget.grab()``.
-        For a 1×1 layout, defers to the active cell's matplotlib ``savefig``
-        path so the report generator's high-DPI behavior is preserved.
+        all visible plots) using ``QWidget.grab()``. Splitter handles are
+        temporarily widened-to-zero before grab + restored after, so the
+        captured PNG shows clean plot edges rather than the inter-cell
+        drag handles. For a 1×1 layout, defers to the active cell's
+        matplotlib ``savefig`` path so the report generator's high-DPI
+        behavior is preserved.
         """
         try:
             preset = self._grid_area.current_preset()
@@ -2251,7 +2261,24 @@ class PlotPage(QWidget):
             self.plot_widget.export_plot(file_path)
             return
         try:
-            pix = self._grid_area.grab()
+            # Hide splitter handles for the duration of the grab so they
+            # don't appear as visible gridlines in the exported image.
+            # ``QSplitter`` has no setHandleVisible(False); the cheapest
+            # alternative is to temporarily set handle width to 0 across
+            # the splitter tree and restore the original widths after.
+            from PyQt5.QtWidgets import QSplitter
+            splitters = self._grid_area.findChildren(QSplitter)
+            saved_widths = [(sp, sp.handleWidth()) for sp in splitters]
+            try:
+                for sp in splitters:
+                    sp.setHandleWidth(0)
+                pix = self._grid_area.grab()
+            finally:
+                for sp, w in saved_widths:
+                    try:
+                        sp.setHandleWidth(w)
+                    except Exception:
+                        pass
             if not pix.isNull():
                 pix.save(str(file_path))
                 return

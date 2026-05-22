@@ -146,7 +146,12 @@ class WelcomeWidget(QWidget):
         self._load_welcome_html()
 
     def _build_recent_sessions_html(self, sessions):
-        """Render recent sessions list HTML from persisted settings data."""
+        """Render recent sessions list HTML from persisted settings data.
+
+        Multi-file sessions get a ``+N`` count badge so the user knows the
+        click will restore N datasets at once. The badge sits next to the
+        session name; the meta line lists the opened timestamp.
+        """
         items = []
         for session in sessions[:6]:
             if not isinstance(session, dict):
@@ -162,13 +167,28 @@ class WelcomeWidget(QWidget):
             escaped_name = html.escape(name)
             escaped_time = html.escape(opened_at)
             js_path = html.escape(json.dumps(file_path))
-            meta = f"<span>{escaped_time}</span>" if escaped_time else "<span>recent file</span>"
+            # Multi-file badge — shows total dataset count for sessions
+            # that restore more than one file.
+            badge_html = ""
+            if len(files) > 1:
+                badge_html = (
+                    f'<span class="recent-badge" title="{len(files)} datasets in this session">'
+                    f'{len(files)}</span>'
+                )
+            meta_parts = []
+            if escaped_time:
+                meta_parts.append(f"<span>{escaped_time}</span>")
+            if len(files) > 1:
+                meta_parts.append(f'<span>{len(files)} datasets</span>')
+            if not meta_parts:
+                meta_parts.append("<span>recent file</span>")
+            meta = " · ".join(meta_parts)
             items.append(
                 f"""
                 <li class="recent-item" onclick="if(window.bridge) bridge.openRecentFile({js_path});">
                   <div class="recent-dot"></div>
                   <div class="recent-info">
-                    <div class="recent-name">{escaped_name}</div>
+                    <div class="recent-name">{escaped_name}{badge_html}</div>
                     <div class="recent-meta">{meta}</div>
                   </div>
                 </li>
@@ -441,6 +461,17 @@ class WelcomeWidget(QWidget):
     font-size: {recent_name_font}px; font-weight: 600; color: {Colors.TEXT_PRIMARY};
     white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; line-height: 1.3;
+  }}
+  .recent-badge {{
+    display: inline-block; margin-left: 6px;
+    padding: 0 6px; min-width: 14px; height: 14px; line-height: 14px;
+    font-size: 9px; font-weight: 700;
+    color: {Colors.ACCENT_PRIMARY};
+    background-color: {Colors.rgba(Colors.ACCENT_PRIMARY, 0.12)};
+    border: 1px solid {Colors.rgba(Colors.ACCENT_PRIMARY, 0.32)};
+    border-radius: 7px;
+    vertical-align: middle;
+    text-align: center;
   }}
   .recent-meta {{ font-size: {recent_meta_font}px; color: {Colors.TEXT_MUTED}; margin-top: 1px; }}
   .recent-meta span {{ color: {Colors.TEXT_TERTIARY}; }}

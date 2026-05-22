@@ -288,10 +288,27 @@ class PlotCanvas(FigureCanvas):
             pass
 
     def _apply_deferred_resize(self):
-        """Recompute the plot's layout once the resize burst has settled."""
+        """Recompute the plot's layout once the resize burst has settled.
+
+        If the owning PlotWidget cached its last (data, plot_type), do a
+        full re-render so fonts are re-scaled against the new canvas size
+        (font scale is bound at draw time, so tight_layout alone wouldn't
+        update tick / axis label sizes after a splitter drag or sidebar
+        toggle). Falls back to a plain tight_layout if no re-render
+        params are available.
+        """
         self._pending_resize = False
-        # request_tight_layout already handles its own min-interval throttling
-        # and draw_idle scheduling — just call it.
+        owner = getattr(self, "_pw_owner", None)
+        if owner is not None:
+            data = getattr(owner, "_last_render_data", None)
+            ptype = getattr(owner, "_last_render_plot_type", None)
+            if ptype is not None and data is not None:
+                try:
+                    owner.update_plot(data, ptype)
+                    return
+                except Exception:
+                    pass
+        # No cached render params or re-render failed — at least re-fit layout.
         try:
             self.request_tight_layout()
         except Exception:
@@ -966,6 +983,10 @@ class PlotWidget(QWidget):
             interaction_callback=self._on_canvas_pan_state_changed,
             click_callback=self._on_canvas_clicked,
         )
+        # Back-reference so the canvas can re-render this widget on resize-
+        # settled (used by _apply_deferred_resize to rescale fonts when the
+        # cell is resized by splitter drag / sidebar toggle / window resize).
+        self.canvas._pw_owner = self
         frame_layout.addWidget(self.canvas, 1)
 
         content_row.addWidget(self.canvas_frame, 1)
@@ -1561,6 +1582,12 @@ class PlotWidget(QWidget):
         # compasses to appear on Histogram/Rose cells when the user
         # toggled the pill while a Gradient Vectors cell was active).
         self._current_plot_type = plot_type
+        # Cache the most-recent (data, plot_type) so the canvas's resize
+        # debounce can re-run a full draw on a stable size — fonts are
+        # bound at draw time, so just tight_layout-ing isn't enough to
+        # rescale them after a splitter drag or sidebar toggle.
+        self._last_render_data = data
+        self._last_render_plot_type = plot_type
         self._clear_plot_interactivity()
         self.canvas.ax.clear()
         self.canvas._style_axes()
